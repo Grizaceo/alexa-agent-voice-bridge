@@ -118,14 +118,16 @@ function ssml(text, { sound = '' } = {}) {
   const audio = sound ? `<audio src="${sound.replace(/["<>&]/g, '')}"/>` : '';
   return `<speak>${audio}${safe}</speak>`;
 }
-// La pregunta en pocas palabras, para repetirla en voz alta ("Entendí: …", "lo que me pediste: …").
+// La pregunta en pocas palabras y como frase cerrada, para repetirla ("Entendí: …", "lo que me pediste: …").
+// Conserva "¿…?" y "¡…!"; si no termina en puntuación, agrega un punto.
 function shortQuestion(text, maxWords = 14) {
-  const words = stripMarkdown(text).replace(/\s+/g, ' ').trim().replace(/^[¿¡]+|[.?!]+$/g, '').split(' ');
-  return words.length > maxWords ? `${words.slice(0, maxWords).join(' ')}…` : words.join(' ');
+  const words = stripMarkdown(text).replace(/\s+/g, ' ').trim().replace(/\.+$/, '').split(' ');
+  const short = words.length > maxWords ? `${words.slice(0, maxWords).join(' ')}…` : words.join(' ');
+  return /[?!…]$/.test(short) ? short : `${short}.`;
 }
 // Tarjeta con la respuesta completa en la app Alexa (y en la pantalla de un Echo Show).
 function withAnswerCard(builder, question, answer) {
-  return builder.withSimpleCard(`${ASSISTANT_NAME}: ${shortQuestion(question, 10)}`, stripMarkdown(answer).slice(0, 6000));
+  return builder.withSimpleCard(`${ASSISTANT_NAME}: ${shortQuestion(question, 10).replace(/\.$/, '')}`, stripMarkdown(answer).slice(0, 6000));
 }
 // Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo").
 function normalizeSpokenQuery(text) {
@@ -198,8 +200,8 @@ function deliverTask(handlerInput, task, { atLaunch = false } = {}) {
   logDebug('pending_reply_delivered', { taskId: task.id, origin: task.origin, waitedMs: Date.now() - Date.parse(task.createdAt) });
   const elsewhere = task.origin === 'voice' ? '' : ' desde otro dispositivo';
   const intro = atLaunch
-    ? `Tengo la respuesta a lo que me pediste${elsewhere}: ${shortQuestion(task.question)}. `
-    : (elsewhere ? `Lo que me pediste${elsewhere}: ${shortQuestion(task.question)}. ` : '');
+    ? `Tengo la respuesta a lo que me pediste${elsewhere}: ${shortQuestion(task.question)} `
+    : (elsewhere ? `Lo que me pediste${elsewhere}: ${shortQuestion(task.question)} ` : '');
   return withAnswerCard(handlerInput.responseBuilder, task.question, task.answer)
     .speak(ssml(`${intro}${stripMarkdown(task.answer)}`, { sound: READY_SOUND }))
     .reprompt(ssml('¿Algo más?'))
@@ -332,7 +334,7 @@ const TalkToDaviIntentHandler = {
     if (!result) {
       handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, turnCount, history, lastQuery: utterance, pendingTaskId: task.id });
       return handlerInput.responseBuilder
-        .speak(ssml(`Entendí: ${shortQuestion(utterance)}. Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
+        .speak(ssml(`Entendí: ${shortQuestion(utterance)} Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
         .reprompt(ssml('Di repite cuando quieras escuchar la respuesta.'))
         .withShouldEndSession(false)
         .getResponse();
