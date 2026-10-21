@@ -64,6 +64,9 @@ async function startBackend(dir, gatewayPort, extraEnv = {}) {
       TASKS_FILE: path.join(dir, 'tasks.json'),
       SESSION_FILE: path.join(dir, 'sessions.json'),
       ALEXA_DEBUG_LOG: path.join(dir, 'debug.log'),
+      VOICE_ID_MODE: 'off',
+      VOICE_OWNER_PERSON_ID: '',
+      VOICE_OWNER_FILE: path.join(dir, 'voice-owner.json'),
       ...extraEnv,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -82,18 +85,20 @@ async function startBackend(dir, gatewayPort, extraEnv = {}) {
 }
 
 // Una sesión de Alexa: lleva los sessionAttributes de cada respuesta a la siguiente request, como Alexa.
-function alexaSession(backend) {
+// personId simula Voice ID (context.System.person); se puede fijar por sesión o por request.
+function alexaSession(backend, { personId: sessionPersonId = null } = {}) {
   const sessionId = `amzn1.echo-api.session.${Math.random().toString(36).slice(2)}`;
   let attributes = {};
   let isNew = true;
   let requestCount = 0;
-  return async function send(request) {
+  return async function send(request, { personId = sessionPersonId } = {}) {
     const envelope = {
       version: '1.0',
       session: { new: isNew, sessionId, application: { applicationId: SKILL_ID }, user: { userId: USER_ID }, attributes },
       context: { System: { application: { applicationId: SKILL_ID }, user: { userId: USER_ID }, device: { deviceId: 'test-device', supportedInterfaces: {} }, apiEndpoint: 'https://api.amazonalexa.com' } },
       request: { requestId: `${sessionId}.${requestCount += 1}`, timestamp: new Date().toISOString(), locale: 'es-US', ...request },
     };
+    if (personId) envelope.context.System.person = { personId, authenticationConfidenceLevel: { level: 300 } };
     isNew = false;
     const res = await fetch(backend.alexa, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(envelope) });
     assert.equal(res.status, 200, await res.clone().text());

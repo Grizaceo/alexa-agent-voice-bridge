@@ -8,6 +8,7 @@ require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const agent = require('./agent');
 const { stripMarkdown } = agent;
 const { mountMcp } = require('./mcp');
+const { createVoiceId } = require('./voice-id');
 
 const PORT = Number(process.env.PORT || 3107);
 // Solo localhost: Tailscale Funnel llega por 127.0.0.1 y la spec MCP pide no exponer servidores locales.
@@ -37,6 +38,17 @@ const VOICE_GATEWAY_TIMEOUT_MS = Number(process.env.VOICE_GATEWAY_TIMEOUT_MS || 
 const RETURN_PHRASE = process.env.ALEXA_RETURN_PHRASE || 'Alexa, mango';
 // taskId -> cuántas veces "repite" esperó sin respuesta. Solo afecta a cuándo se corta la conversación.
 const stillWorkingCounts = new Map();
+// Identificación por voz: off (solo registra si Alexa reconoció la voz), enroll (guarda al primer
+// hablante reconocido como dueño) o enforce (solo el dueño llega al agente). Ver src/voice-id.js.
+const voiceId = createVoiceId({
+  mode: process.env.VOICE_ID_MODE || 'off',
+  ownerFile: path.resolve(process.env.VOICE_OWNER_FILE || path.join(__dirname, '..', 'data', 'voice-owner.json')),
+  ownerPersonId: process.env.VOICE_OWNER_PERSON_ID || '',
+  log: logDebug,
+});
+// Frases seguidas de otras voces tras las que se cierra la sesión, y si se ignoran en silencio.
+const VOICE_ID_MAX_IGNORED = Number(process.env.VOICE_ID_MAX_IGNORED || 3);
+const VOICE_ID_SILENT = String(process.env.VOICE_ID_SILENT || 'false').toLowerCase() === 'true';
 // Free*Intent capturan habla libre ("qué {query}", "busca {query}"). Alexa no incluye
 // la palabra inicial en el slot, así que se reconstruye desde la primera muestra del modelo.
 const INTERACTION_MODEL_INTENTS = loadInteractionModelIntents();
@@ -123,6 +135,31 @@ function resolveFastPath(utterance) {
   }
   return null;
 }
+// true si quien habla puede usar el agente (siempre, salvo VOICE_ID_MODE=enforce); reinicia la cuenta de ignoradas.
+function speakerAllowed(handlerInput, kind) {
+  if (!voiceId.check(handlerInput.requestEnvelope, kind).allowed) return false;
+  const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
+  if (sessionAttrs.ignoredCount) handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, ignoredCount: 0 });
+  return true;
+}
+// Una voz que no es la del dueño: no crea tarea ni entra al historial, y la sesión sigue escuchando.
+function ignoreSpeaker(handlerInput) {
+  const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
+  const ignoredCount = (sessionAttrs.ignoredCount || 0) + 1;
+  handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, ignoredCount });
+  if (ignoredCount >= VOICE_ID_MAX_IGNORED) {
+    return handlerInput.responseBuilder
+      .speak(ssml('No reconozco esta voz. Hasta luego.'))
+      .withShouldEndSession(true)
+      .getResponse();
+  }
+  if (VOICE_ID_SILENT) return handlerInput.responseBuilder.withShouldEndSession(false).getResponse();
+  return handlerInput.responseBuilder
+    .speak(ssml('No reconocí tu voz. Si me hablabas a mí, repítelo.'))
+    .reprompt(ssml('Te escucho.'))
+    .withShouldEndSession(false)
+    .getResponse();
+}
 // La tarea que espera esta conversación de voz o, si no tiene, la última pendiente de cualquier superficie.
 function findVoiceTask(sessionAttrs) {
   const own = sessionAttrs.pendingTaskId ? agent.getTask(sessionAttrs.pendingTaskId) : null;
@@ -168,8 +205,9 @@ const LaunchRequestHandler = {
         .getResponse();
     }
     const state = getSessionState(userId);
-    // Solo se anuncia la última tarea done sin entregar, venga de la voz o de un cliente MCP.
-    const ready = state.linked ? agent.latestUndelivered() : null;
+    // Solo se anuncia la última tarea done sin entregar, venga de la voz o de un cliente MCP,
+    // y con VOICE_ID_MODE=enforce solo si quien abre es el dueño.
+    const ready = state.linked && speakerAllowed(handlerInput, 'launch') ? agent.latestUndelivered() : null;
     if (ready) {
       return deliverTask(handlerInput, ready, 'Tengo la respuesta a lo que me pediste. ');
     }
@@ -215,6 +253,8 @@ const TalkToDaviIntentHandler = {
         .withShouldEndSession(true)
         .getResponse();
     }
+    // La TV o alguien que le habla al usuario no llegan al agente (VOICE_ID_MODE=enforce).
+    if (!speakerAllowed(handlerInput, 'talk')) return ignoreSpeaker(handlerInput);
 
     const intentName = Alexa.getIntentName(handlerInput.requestEnvelope);
 
@@ -333,6 +373,7 @@ const RepeatIntentHandler = {
       && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.RepeatIntent';
   },
   async handle(handlerInput) {
+    if (!speakerAllowed(handlerInput, 'repeat')) return ignoreSpeaker(handlerInput);
     const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
     let task = findVoiceTask(sessionAttrs);
     // Esperar dentro de este mismo turno antes de pedir otro "repite".
@@ -526,6 +567,7 @@ app.get('/health', (_req, res) => {
     gatewayConfigured: Boolean(HERMES_GATEWAY_URL),
     apiModel: HERMES_API_MODEL,
     mcpEnabled: Boolean(MCP_TOKEN),
+    voiceId: voiceId.status(),
   });
 });
 

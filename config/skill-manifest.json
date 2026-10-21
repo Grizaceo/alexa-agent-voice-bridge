@@ -10,6 +10,7 @@
       }
     },
     "manifestVersion": "1.0",
+    "permissions": [{ "name": "alexa::person_id:read" }],
     "publishingInformation": {
       "locales": {
         "es-US": {
