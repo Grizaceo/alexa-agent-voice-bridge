@@ -5,16 +5,16 @@ const express = require('express');
 const Alexa = require('ask-sdk-core');
 const { ExpressAdapter } = require('ask-sdk-express-adapter');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+const agent = require('./agent');
 
 const PORT = Number(process.env.PORT || 3107);
 // Nombre con que la skill se presenta por voz ("Mango listo. Puedes hablarme.").
 const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Mango';
 const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID || '';
 const HERMES_GATEWAY_URL = (process.env.HERMES_GATEWAY_URL || 'http://127.0.0.1:8642/v1/chat/completions').replace(/\/+$/, '');
-const HERMES_GATEWAY_TOKEN = process.env.HERMES_GATEWAY_TOKEN || process.env.API_SERVER_KEY || '';
 const HERMES_API_MODEL = process.env.HERMES_API_MODEL || 'hermes-agent';
 const SESSION_FILE = path.resolve(process.env.SESSION_FILE || path.join(__dirname, '..', 'data', 'sessions.json'));
-const DEBUG_LOG_FILE = path.resolve(path.join(__dirname, '..', 'data', 'alexa-debug.log'));
+const DEBUG_LOG_FILE = path.resolve(process.env.ALEXA_DEBUG_LOG || path.join(__dirname, '..', 'data', 'alexa-debug.log'));
 const ALLOW_USER_IDS = new Set((process.env.ALLOW_USER_IDS || '').split(',').map(s => s.trim()).filter(Boolean));
 const PIN_REQUIRED = String(process.env.PIN_REQUIRED || 'false').toLowerCase() === 'true';
 const ALEXA_LINK_PIN = process.env.ALEXA_LINK_PIN || '';
@@ -23,14 +23,12 @@ const ALEXA_LINK_PIN = process.env.ALEXA_LINK_PIN || '';
 // Se enciende solo cuando ALEXA_SKIP_VERIFICATION=true en .env local.
 const ALEXA_SKIP_VERIFICATION = String(process.env.ALEXA_SKIP_VERIFICATION || 'false').toLowerCase() === 'true';
 // Alexa corta a los ~8 s (incluido el relay de Tailscale). Pasado este plazo se responde
-// "lo estoy pensando" y la consulta a Hermes sigue corriendo hasta HERMES_MAX_WAIT_MS.
+// "lo estoy pensando" y la tarea sigue corriendo en src/agent.js (hasta HERMES_MAX_WAIT_MS).
 const VOICE_GATEWAY_TIMEOUT_MS = Number(process.env.VOICE_GATEWAY_TIMEOUT_MS || 5000);
-const HERMES_MAX_WAIT_MS = Number(process.env.HERMES_MAX_WAIT_MS || 600000);
-const PENDING_REPLY_TTL_MS = 30 * 60 * 1000;
 // Frase con la que el usuario vuelve a abrir la skill (rutina de la app Alexa).
 const RETURN_PHRASE = process.env.ALEXA_RETURN_PHRASE || 'Alexa, mango';
-// userId -> { utterance, startedAt, settled, result, stillWorkingCount }: respuestas de Hermes que llegaron tarde.
-const pendingReplies = new Map();
+// taskId -> cuántas veces "repite" esperó sin respuesta. Solo afecta a cuándo se corta la conversación.
+const stillWorkingCounts = new Map();
 // Free*Intent capturan habla libre ("qué {query}", "busca {query}"). Alexa no incluye
 // la palabra inicial en el slot, así que se reconstruye desde la primera muestra del modelo.
 const INTERACTION_MODEL_INTENTS = loadInteractionModelIntents();
@@ -128,145 +126,31 @@ function resolveFastPath(utterance) {
   }
   return null;
 }
-async function buildContext(history = []) {
-  const messages = [];
-
-  if (history && history.length > 0) {
-    for (const entry of history) {
-      messages.push({ role: entry.role, content: entry.content });
-    }
-  }
-
-  return { messages };
+// La tarea que espera esta conversación de voz o, si no tiene, la última pendiente de cualquier superficie.
+function findVoiceTask(sessionAttrs) {
+  const own = sessionAttrs.pendingTaskId ? agent.getTask(sessionAttrs.pendingTaskId) : null;
+  return own || agent.listTasks().find(task => task.status === 'pending') || null;
 }
-async function callHermesGateway(message, metadata = {}) {
-  const url = HERMES_GATEWAY_URL;
-  if (!url) {
-    return { ok: false, text: 'Falta configurar la URL del gateway del agente.' };
-  }
-
-  const conversation = await buildContext(metadata.history);
-  conversation.messages.push({ role: 'user', content: message });
-
-  const body = {
-    model: HERMES_API_MODEL,
-    messages: conversation.messages,
-    max_tokens: 512,
-    temperature: 0.2,
-  };
-
-  const headers = {
-    'Content-Type': 'application/json',
-  };
-  if (HERMES_GATEWAY_TOKEN) {
-    headers['Authorization'] = `Bearer ${HERMES_GATEWAY_TOKEN}`;
-  }
-  if (metadata.hermesSessionKey) {
-    headers['X-Hermes-Session-Id'] = String(metadata.hermesSessionKey);
-  }
-
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), HERMES_MAX_WAIT_MS);
-
-  let response;
-  try {
-    response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    clearTimeout(timeout);
-    const aborted = error && (error.name === 'AbortError' || String(error.message || '').includes('aborted'));
-    if (aborted) {
-      return { ok: false, text: `${ASSISTANT_NAME} no respondió en ${Math.round(HERMES_MAX_WAIT_MS / 1000)} segundos. Prueba con una pregunta más breve.` };
-    }
-    const reason = error instanceof Error ? error.message : String(error);
-    return { ok: false, text: `Error de red al llamar a ${ASSISTANT_NAME}: ${reason}` };
-  } finally {
-    clearTimeout(timeout);
-  }
-
-  if (!response.ok) {
-    const text = await response.text().catch(() => '');
-    return { ok: false, text: `${ASSISTANT_NAME} respondió con error ${response.status}: ${text}` };
-  }
-
-  let data;
-  try {
-    data = await response.json();
-  } catch (error) {
-    return { ok: false, text: `Respuesta de ${ASSISTANT_NAME} inválida.` };
-  }
-
-  let reply = '';
-  try {
-    const choice = data?.choices?.[0];
-    if (choice?.message?.content) reply = choice.message.content.trim();
-    else if (choice?.message?.reasoning) reply = choice.message.reasoning.trim();
-    else if (choice?.delta?.content) reply = choice.delta.content.trim();
-  } catch {
-    reply = '';
-  }
-
-  if (!reply) {
-    return { ok: true, text: `${ASSISTANT_NAME} no generó respuesta de texto.` };
-  }
-
-  setSessionState(metadata.userId, { lastSeenAt: new Date().toISOString() });
-  return { ok: true, text: reply };
-}
-// Espera a Hermes solo hasta el límite de voz. Si no alcanza, deja la respuesta
-// pendiente para el usuario y devuelve null.
-async function waitForVoiceReply(userId, utterance, call) {
-  const pending = { utterance, startedAt: Date.now(), result: null, stillWorkingCount: 0 };
-  pending.settled = call
-    .catch(error => ({ ok: false, text: `Error al llamar a ${ASSISTANT_NAME}: ${error instanceof Error ? error.message : String(error)}` }))
-    .then(result => {
-      pending.result = result;
-      logDebug('pending_reply_ready', { userId, utterance, ms: Date.now() - pending.startedAt, ok: result.ok });
-      return result;
-    });
-  pendingReplies.set(userId, pending);
-  const result = await raceVoiceDeadline(pending.settled);
-  if (result && pendingReplies.get(userId) === pending) pendingReplies.delete(userId);
-  return result;
-}
-async function raceVoiceDeadline(promise) {
-  let timer;
-  const deadline = new Promise(resolve => { timer = setTimeout(() => resolve(null), VOICE_GATEWAY_TIMEOUT_MS); });
-  const result = await Promise.race([promise, deadline]);
-  clearTimeout(timer);
-  return result;
-}
-function getPendingReply(userId) {
-  const pending = pendingReplies.get(userId);
-  if (!pending) return null;
-  if (Date.now() - pending.startedAt > PENDING_REPLY_TTL_MS) {
-    pendingReplies.delete(userId);
-    return null;
-  }
-  return pending;
-}
-// Lee una respuesta pendiente que ya llegó y la suma al historial de la sesión.
-function deliverPendingReply(handlerInput, userId, pending, intro = '') {
-  pendingReplies.delete(userId);
+// Lee la respuesta de una tarea terminada, la marca entregada y la suma al historial de la sesión.
+function deliverTask(handlerInput, task, intro = '') {
+  agent.markDelivered(task.id);
+  stillWorkingCounts.delete(task.id);
   const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
   const history = [
     ...(sessionAttrs.history || []),
-    { role: 'user', content: pending.utterance },
-    { role: 'assistant', content: pending.result.text },
+    { role: 'user', content: task.question },
+    { role: 'assistant', content: task.answer },
   ].slice(-20);
   handlerInput.attributesManager.setSessionAttributes({
     ...sessionAttrs,
     history,
-    lastQuery: pending.utterance,
-    lastReply: pending.result.text,
+    lastQuery: task.question,
+    lastReply: task.answer,
+    pendingTaskId: null,
   });
-  logDebug('pending_reply_delivered', { userId, waitedMs: Date.now() - pending.startedAt });
+  logDebug('pending_reply_delivered', { taskId: task.id, origin: task.origin, waitedMs: Date.now() - Date.parse(task.createdAt) });
   return handlerInput.responseBuilder
-    .speak(ssml(`${intro}${stripMarkdown(pending.result.text)}`))
+    .speak(ssml(`${intro}${stripMarkdown(task.answer)}`))
     .reprompt(ssml('¿Algo más?'))
     .withShouldEndSession(false)
     .getResponse();
@@ -287,15 +171,20 @@ const LaunchRequestHandler = {
         .getResponse();
     }
     const state = getSessionState(userId);
-    const pending = getPendingReply(userId);
-    if (state.linked && pending?.result) {
-      return deliverPendingReply(handlerInput, userId, pending, 'Tengo la respuesta a lo que me pediste. ');
+    // Solo se anuncia la última tarea done sin entregar, venga de la voz o de un cliente MCP.
+    const ready = state.linked ? agent.latestUndelivered() : null;
+    if (ready) {
+      return deliverTask(handlerInput, ready, 'Tengo la respuesta a lo que me pediste. ');
     }
-    const ready = pending
+    const pending = findVoiceTask({});
+    if (pending) {
+      handlerInput.attributesManager.setSessionAttributes({ ...handlerInput.attributesManager.getSessionAttributes(), pendingTaskId: pending.id });
+    }
+    const greeting = pending
       ? `${ASSISTANT_NAME} listo. Sigo trabajando en lo que me pediste antes; di repite para esperarla, o pídeme otra cosa.`
       : `${ASSISTANT_NAME} listo. Puedes hablarme.`;
     const speech = state.linked
-      ? ready
+      ? greeting
       : `${ASSISTANT_NAME} listo. Antes de usar esta skill, el dueño de la skill tiene que vincular esta cuenta.`;
     return handlerInput.responseBuilder
       .speak(ssml(speech))
@@ -363,27 +252,31 @@ const TalkToDaviIntentHandler = {
     const history = sessionAttrs.history || [];
 
     const fastReply = resolveFastPath(utterance);
-    const result = fastReply
-      ? { ok: true, text: fastReply }
-      : await waitForVoiceReply(userId, utterance, callHermesGateway(utterance, {
-          userId,
-          deviceId,
-          hermesSessionKey: state.hermesSessionKey,
-          turnCount,
-          history,
-        }));
+    let result = fastReply ? { ok: true, text: fastReply } : null;
+    let task = null;
+    if (!fastReply) {
+      setSessionState(userId, { lastSeenAt: new Date().toISOString() });
+      // La tarea sigue en segundo plano si no termina dentro del límite de voz.
+      const started = agent.startTask(utterance, 'voice', { history, hermesSessionKey: state.hermesSessionKey });
+      task = (await agent.waitForTask(started.id, VOICE_GATEWAY_TIMEOUT_MS)) || started;
+      if (task.status !== 'pending') {
+        agent.markDelivered(task.id);
+        result = { ok: task.status === 'done', text: task.answer };
+      }
+    }
     logDebug('talk_intent_result', {
       userId,
       deviceId,
       intentName,
       turnCount,
+      taskId: task?.id || null,
       ok: result ? result.ok : null,
       pending: !result,
       replyPreview: String(result?.text || '').slice(0, 160),
     });
 
     if (!result) {
-      handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, turnCount, history, lastQuery: utterance });
+      handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, turnCount, history, lastQuery: utterance, pendingTaskId: task.id });
       return handlerInput.responseBuilder
         .speak(ssml(`Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
         .reprompt(ssml('Di repite cuando quieras escuchar la respuesta.'))
@@ -443,16 +336,17 @@ const RepeatIntentHandler = {
       && Alexa.getIntentName(handlerInput.requestEnvelope) === 'AMAZON.RepeatIntent';
   },
   async handle(handlerInput) {
-    const userId = getAlexaUserId(handlerInput);
-    const pending = getPendingReply(userId);
+    const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
+    let task = findVoiceTask(sessionAttrs);
     // Esperar dentro de este mismo turno antes de pedir otro "repite".
-    if (pending && !pending.result) await raceVoiceDeadline(pending.settled);
-    if (pending?.result) return deliverPendingReply(handlerInput, userId, pending);
-    if (pending) {
-      pending.stillWorkingCount += 1;
-      logDebug('repeat_intent', { pending: true, waitedMs: Date.now() - pending.startedAt, stillWorkingCount: pending.stillWorkingCount });
+    if (task?.status === 'pending') task = (await agent.waitForTask(task.id, VOICE_GATEWAY_TIMEOUT_MS)) || task;
+    if (task && task.status !== 'pending') return deliverTask(handlerInput, task);
+    if (task) {
+      const stillWorkingCount = (stillWorkingCounts.get(task.id) || 0) + 1;
+      stillWorkingCounts.set(task.id, stillWorkingCount);
+      logDebug('repeat_intent', { pending: true, taskId: task.id, waitedMs: Date.now() - Date.parse(task.createdAt), stillWorkingCount });
       // A la segunda espera fallida se corta: la respuesta queda guardada para la próxima apertura.
-      if (pending.stillWorkingCount >= 2) {
+      if (stillWorkingCount >= 2) {
         return handlerInput.responseBuilder
           .speak(ssml(`Sigue trabajando y te guardo la respuesta. Cuando quieras, dime ${RETURN_PHRASE}, y te la leo.`))
           .withShouldEndSession(true)
@@ -464,7 +358,6 @@ const RepeatIntentHandler = {
         .withShouldEndSession(false)
         .getResponse();
     }
-    const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
     const lastReply = sessionAttrs.lastReply || 'No tengo nada que repetir todavía.';
     logDebug('repeat_intent', { pending: false, lastReplyPreview: String(lastReply).slice(0, 160) });
     return handlerInput.responseBuilder
@@ -497,8 +390,9 @@ const CancelAndStopIntentHandler = {
   },
   handle(handlerInput) {
     // "maracuyá" cae aquí (muestra de AMAZON.StopIntent). Una respuesta pendiente no se descarta.
-    const pending = getPendingReply(getAlexaUserId(handlerInput));
-    const speech = pending
+    const task = findVoiceTask(handlerInput.attributesManager.getSessionAttributes());
+    const saved = task && (task.status === 'pending' || (task.status === 'done' && !task.deliveredAt));
+    const speech = saved
       ? `Listo. Te guardo la respuesta que sigue en curso; dime ${RETURN_PHRASE} cuando quieras escucharla.`
       : 'Listo, hasta luego.';
     return handlerInput.responseBuilder
@@ -643,6 +537,9 @@ app.post('/', adapter.getRequestHandlers());
 // Ruta /alexa explícita para Tailscale serve (que preserva el path, a diferencia de funnel).
 // Ambas rutas apuntan al mismo adapter.
 app.post('/alexa', adapter.getRequestHandlers());
+
+// Recarga las tareas de data/tasks.json; las que quedaron pending pasan a failed.
+agent.initTasks({ log: logDebug });
 
 const server = app.listen(PORT, () => {
   ensureSessionStore();

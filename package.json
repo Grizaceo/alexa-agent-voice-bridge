@@ -7,9 +7,10 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "check": "node --check src/server.js && node --check scripts/skill.js && node --check scripts/nlu-check.js",
+    "check": "node --check src/server.js && node --check src/agent.js && node --check scripts/skill.js && node --check scripts/nlu-check.js",
     "skill": "node scripts/skill.js",
-    "nlu": "node scripts/nlu-check.js"
+    "nlu": "node scripts/nlu-check.js",
+    "test": "node --test \"test/**/*.test.js\""
   },
   "dependencies": {
     "ask-sdk-core": "^2.14.0",
