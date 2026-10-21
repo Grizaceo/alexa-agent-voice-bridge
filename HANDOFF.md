@@ -3,17 +3,23 @@
 > Documento de trabajo para el agente que implementa. **Antes de publicar el repo, muévelo a `docs/hackathon-log.md` o elimínalo** (fase F8).
 > Los datos propios de la máquina (puertos en uso, hostnames, procesos de producción) están en `.hackathon/LOCAL_NOTES.md`, que no se versiona.
 
-## Estado al crear este repo (2026-10-21)
+## Estado (actualizado el 2026-10-21, 05:30, rama `hackathon/alexa-plus`, sin push)
 
-- **Funciona:** Alexa Custom Skill clásica + backend Node (`src/server.js`) probados en un Echo real (es-US). Incluye:
-  - habla libre con `Free<Palabra>Intent`;
-  - modo pensando (5 s → respuesta pendiente; "repite"; se lee al reabrir);
-  - cierre con "maracuyá";
-  - `npm run skill` y `npm run nlu` (32/32 en es-US).
+| Fase | Estado | Evidencia |
+|---|---|---|
+| F0 spec y SDK | ✅ | `.hackathon/NOTES.md` § F0. Cambio a SDK v2 aprobado. |
+| F1 almacén persistente | ✅ | `src/agent.js`, `test/agent.test.js` |
+| F2 servidor MCP | ✅ | `src/mcp.js`, `test/mcp.test.js` (ambas eras), Inspector 2.11 |
+| F3 entre superficies | ✅ | `test/cross-surface.test.js`; NLU 32/32; producción en este repo (cruce real voz ↔ MCP) |
+| F4 Agent Skill | ✅ | `skills/voice-agent-bridge/SKILL.md` (skills-ref válido), también servida por MCP (SEP-2640, Inspector `--verify`); demo con Claude Code |
+| F4b Voice ID | 🟡 código y tests listos | Falta la puerta en el Echo real (ver "Pasos del usuario" abajo) |
+| F5 PR a ask-cli | 🟡 listo en local | Publicar requiere permiso (`.hackathon/f5-pr.md`) |
+| F6 docs y Devpost | ✅ (con **[confirmar]**) | README/SETUP en inglés; `.hackathon/` (friction log, feedback, feature requests, devpost, video) |
+| Extra tras brainstorm y juez | ✅ | Pulido de voz (repetir lo entendido, recordar la pregunta, sonido, tarjeta), `npm run demo`, MCP App (tablero, verificado en MCPJam) |
+| F7 web que simula Alexa+ | ⛔ descartada | La reemplazan la MCP App y `npm run demo` |
+| F8 publicar | 🟡 semi-gate hecho | `.hackathon/f8-gate.md` |
 
-  Ver `README.md` y `docs/SETUP.md`.
-- **No existe todavía:** el servidor MCP, la Agent Skill, la persistencia de tareas, las docs en inglés ni el material de Devpost.
-- **Historia limpia:** este repo nació de un export de los archivos versionados de un repo privado anterior, sin su historia, que contenía datos personales.
+Producción (3107) corre el código de F4b en `VOICE_ID_MODE=off`. Los commits posteriores (pulido de voz, MCP App) necesitan un reinicio aprobado por el usuario.
 
 ## Objetivo
 
