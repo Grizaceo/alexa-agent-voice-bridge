@@ -36,6 +36,8 @@ const ALEXA_SKIP_VERIFICATION = String(process.env.ALEXA_SKIP_VERIFICATION || 'f
 const VOICE_GATEWAY_TIMEOUT_MS = Number(process.env.VOICE_GATEWAY_TIMEOUT_MS || 5000);
 // Frase con la que el usuario vuelve a abrir la skill (rutina de la app Alexa).
 const RETURN_PHRASE = process.env.ALEXA_RETURN_PHRASE || 'Alexa, mango';
+// Sonido de la biblioteca de Alexa antes de leer una respuesta que esperó. READY_SOUND= (vacío) lo apaga.
+const READY_SOUND = process.env.READY_SOUND ?? 'soundbank://soundlibrary/alarms/beeps_and_bloops/bell_02';
 // taskId -> cuántas veces "repite" esperó sin respuesta. Solo afecta a cuándo se corta la conversación.
 const stillWorkingCounts = new Map();
 // Identificación por voz: off (solo registra si Alexa reconoció la voz), enroll (guarda al primer
@@ -107,13 +109,23 @@ function setSessionState(userId, patch) {
   writeSessions(db);
   return db[userId];
 }
-function ssml(text) {
+function ssml(text, { sound = '' } = {}) {
   const safe = String(text || '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .trim();
-  return `<speak>${safe}</speak>`;
+  const audio = sound ? `<audio src="${sound.replace(/["<>&]/g, '')}"/>` : '';
+  return `<speak>${audio}${safe}</speak>`;
+}
+// La pregunta en pocas palabras, para repetirla en voz alta ("Entendí: …", "lo que me pediste: …").
+function shortQuestion(text, maxWords = 14) {
+  const words = stripMarkdown(text).replace(/\s+/g, ' ').trim().replace(/^[¿¡]+|[.?!]+$/g, '').split(' ');
+  return words.length > maxWords ? `${words.slice(0, maxWords).join(' ')}…` : words.join(' ');
+}
+// Tarjeta con la respuesta completa en la app Alexa (y en la pantalla de un Echo Show).
+function withAnswerCard(builder, question, answer) {
+  return builder.withSimpleCard(`${ASSISTANT_NAME}: ${shortQuestion(question, 10)}`, stripMarkdown(answer).slice(0, 6000));
 }
 // Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo").
 function normalizeSpokenQuery(text) {
@@ -165,8 +177,9 @@ function findVoiceTask(sessionAttrs) {
   const own = sessionAttrs.pendingTaskId ? agent.getTask(sessionAttrs.pendingTaskId) : null;
   return own || agent.listTasks().find(task => task.status === 'pending') || null;
 }
-// Lee la respuesta de una tarea terminada, la marca entregada y la suma al historial de la sesión.
-function deliverTask(handlerInput, task, intro = '') {
+// Lee la respuesta de una tarea que esperó, la marca entregada y la suma al historial de la sesión.
+// Suena READY_SOUND; al abrir (o si la pidió otra superficie) recuerda cuál era la pregunta.
+function deliverTask(handlerInput, task, { atLaunch = false } = {}) {
   agent.markDelivered(task.id);
   stillWorkingCounts.delete(task.id);
   const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
@@ -183,8 +196,12 @@ function deliverTask(handlerInput, task, intro = '') {
     pendingTaskId: null,
   });
   logDebug('pending_reply_delivered', { taskId: task.id, origin: task.origin, waitedMs: Date.now() - Date.parse(task.createdAt) });
-  return handlerInput.responseBuilder
-    .speak(ssml(`${intro}${stripMarkdown(task.answer)}`))
+  const elsewhere = task.origin === 'voice' ? '' : ' desde otro dispositivo';
+  const intro = atLaunch
+    ? `Tengo la respuesta a lo que me pediste${elsewhere}: ${shortQuestion(task.question)}. `
+    : (elsewhere ? `Lo que me pediste${elsewhere}: ${shortQuestion(task.question)}. ` : '');
+  return withAnswerCard(handlerInput.responseBuilder, task.question, task.answer)
+    .speak(ssml(`${intro}${stripMarkdown(task.answer)}`, { sound: READY_SOUND }))
     .reprompt(ssml('¿Algo más?'))
     .withShouldEndSession(false)
     .getResponse();
@@ -209,7 +226,7 @@ const LaunchRequestHandler = {
     // y con VOICE_ID_MODE=enforce solo si quien abre es el dueño.
     const ready = state.linked && speakerAllowed(handlerInput, 'launch') ? agent.latestUndelivered() : null;
     if (ready) {
-      return deliverTask(handlerInput, ready, 'Tengo la respuesta a lo que me pediste. ');
+      return deliverTask(handlerInput, ready, { atLaunch: true });
     }
     const pending = findVoiceTask({});
     if (pending) {
@@ -315,7 +332,7 @@ const TalkToDaviIntentHandler = {
     if (!result) {
       handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, turnCount, history, lastQuery: utterance, pendingTaskId: task.id });
       return handlerInput.responseBuilder
-        .speak(ssml(`Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
+        .speak(ssml(`Entendí: ${shortQuestion(utterance)}. Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
         .reprompt(ssml('Di repite cuando quieras escuchar la respuesta.'))
         .withShouldEndSession(false)
         .getResponse();
@@ -336,7 +353,7 @@ const TalkToDaviIntentHandler = {
       lastReply: result.text,
     });
 
-    return handlerInput.responseBuilder
+    return withAnswerCard(handlerInput.responseBuilder, utterance, result.text)
       .speak(ssml(stripMarkdown(result.text)))
       .reprompt(ssml('Si quieres, puedes seguir hablando conmigo.'))
       .withShouldEndSession(false)

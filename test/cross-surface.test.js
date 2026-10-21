@@ -30,7 +30,7 @@ test('voz ↔ MCP sobre el mismo almacén de tareas', async t => {
   await t.test('pedida por voz, recogida por MCP: el Echo ya no la anuncia', async () => {
     const voice = alexaSession(backend);
     const thinking = await voice(intent('FreeBuscaIntent', { query: 'vuelos baratos lento' }));
-    assert.match(thinking.speech, /^Me va a tomar un momento/);
+    assert.match(thinking.speech, /^Entendí: busca vuelos baratos lento\. Me va a tomar un momento/);
     await voice(intent('AMAZON.StopIntent'));
 
     const mcp = await mcpClient(backend);
@@ -56,7 +56,7 @@ test('voz ↔ MCP sobre el mismo almacén de tareas', async t => {
     assert.equal(early.speech, 'Mango listo. Sigo trabajando en lo que me pediste antes; di repite para esperarla, o pídeme otra cosa.');
     await sleep(SLOW_MS + 200);
     const reopened = alexaSession(backend);
-    assert.equal((await reopened(launch())).speech, 'Tengo la respuesta a lo que me pediste. Respuesta: resume mis correos lento');
+    assert.equal((await reopened(launch())).speech, 'Tengo la respuesta a lo que me pediste desde otro dispositivo: resume mis correos lento. Respuesta: resume mis correos lento');
 
     // Entregada por voz: list_tasks ya no la muestra, pero get_agent_result la sigue devolviendo.
     const again = await mcpClient(backend);
@@ -73,7 +73,7 @@ test('voz ↔ MCP sobre el mismo almacén de tareas', async t => {
     const greeting = await voice(launch());
     assert.equal(greeting.attributes.pendingTaskId, pending.task_id);
     await sleep(SLOW_MS + 200);
-    assert.equal((await voice(intent('AMAZON.RepeatIntent'))).speech, 'Respuesta: revisa el calendario lento');
+    assert.equal((await voice(intent('AMAZON.RepeatIntent'))).speech, 'Lo que me pediste desde otro dispositivo: revisa el calendario lento. Respuesta: revisa el calendario lento');
     assert.ok(readTasks(dir).find(x => x.id === pending.task_id).deliveredAt);
   });
 

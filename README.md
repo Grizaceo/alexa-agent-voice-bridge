@@ -84,11 +84,12 @@ Load it from the folder (for example `.claude/skills/voice-agent-bridge/`) or ov
 
 | You say | What happens |
 |---|---|
-| "Alexa, mango" | Opens the conversation. If an answer is ready, it reads it first: "Tengo la respuesta a lo que me pediste…". |
+| "Alexa, mango" | Opens the conversation. If an answer is waiting, a chime plays and it reads the answer first, recalling the question and, if it was asked from an MCP client, where it came from: "Tengo la respuesta a lo que me pediste desde otro dispositivo: …". |
 | "qué hora es en Santiago", "busca…", "resume…", "pregúntale…" | Goes to your agent with the full sentence. |
-| *(the agent takes more than 5 s)* | "Me va a tomar un momento. Di repite…": the task keeps running. |
+| *(the agent takes more than 5 s)* | "Entendí: *<what it heard>*. Me va a tomar un momento. Di repite…": you hear what Alexa transcribed, and the task keeps running. |
 | "repite" | Waits up to 5 s more and reads the answer. On the second miss it ends the session, and the answer stays saved. |
 | "maracuyá" | Closes. Anything in progress is saved. |
+| *(every answer)* | Also appears as a card in the Alexa app (and on an Echo Show screen), so long answers can be read in full. |
 
 Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/es/README.md](docs/es/README.md#por-qué-está-hecho-así)):
 - **Invocation name.** It must be a word the speech recognizer transcribes exactly. "davi" came out as "david", so the invocation is "mango".
@@ -158,6 +159,7 @@ Everything lives in `.env` (see [`.env.example`](.env.example)):
 | `VOICE_GATEWAY_TIMEOUT_MS`, `HERMES_MAX_WAIT_MS` | Wait inside a voice turn (5 s) and maximum wait for the agent (10 min). |
 | `VOICE_ID_MODE`, `VOICE_OWNER_PERSON_ID`, `VOICE_ID_MAX_IGNORED`, `VOICE_ID_SILENT` | Owner-only voice mode. |
 | `ASSISTANT_NAME`, `ALEXA_RETURN_PHRASE`, `ALEXA_ENDPOINT`, `ALLOW_USER_IDS` | Spoken name, reopen phrase, public skill URL, allowed Alexa users. |
+| `READY_SOUND` | Alexa sound-library chime played before an answer that waited (empty = none). |
 | `PORT`, `HOST` | Where the backend listens (`127.0.0.1:3107` by default). |
 
 ## Known limitations

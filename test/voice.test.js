@@ -22,6 +22,8 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
     const reply = await send(intent('FreeQueIntent', { query: 'hora es en Santiago' }));
     assert.equal(reply.speech, 'Respuesta: qué hora es en Santiago');
     assert.equal(reply.ended, false);
+    assert.deepEqual(reply.sounds, []);
+    assert.equal(reply.card.title, 'Mango: qué hora es en Santiago');
     const [task] = readTasks(dir);
     assert.equal(task.status, 'done');
     assert.equal(task.origin, 'voice');
@@ -39,12 +41,16 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
   await t.test('pregunta lenta: modo pensando, "repite" espera y luego lee la respuesta', async () => {
     const send = session(backend);
     const thinking = await send(intent('FreeBuscaIntent', { query: 'algo lento' }));
-    assert.equal(thinking.speech, 'Me va a tomar un momento. Di repite en unos segundos, o más tarde dime Alexa, mango, y te cuento.');
+    assert.equal(thinking.speech, 'Entendí: busca algo lento. Me va a tomar un momento. Di repite en unos segundos, o más tarde dime Alexa, mango, y te cuento.');
+    assert.deepEqual(thinking.sounds, []);
     assert.ok(thinking.attributes.pendingTaskId);
     assert.equal((await send(intent('AMAZON.RepeatIntent'))).speech, 'Todavía estoy en eso. Di repite en unos segundos.');
     await sleep(SLOW_MS);
     const answer = await send(intent('AMAZON.RepeatIntent'));
     assert.equal(answer.speech, 'Respuesta: busca algo lento');
+    // Una respuesta que esperó suena antes de leerse y queda completa en la app Alexa.
+    assert.deepEqual(answer.sounds, ['soundbank://soundlibrary/alarms/beeps_and_bloops/bell_02']);
+    assert.deepEqual(answer.card, { type: 'Simple', title: 'Mango: busca algo lento', content: 'Respuesta: busca algo lento' });
     assert.equal(answer.attributes.pendingTaskId, null);
     assert.equal(answer.attributes.history.at(-1).content, '**Respuesta:** busca algo lento');
     const task = readTasks(dir).find(x => x.id === thinking.attributes.pendingTaskId);
@@ -63,7 +69,7 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
     assert.equal(closing.ended, true);
     await sleep(SLOW_MS);
     const reopened = session(backend);
-    assert.equal((await reopened(launch())).speech, 'Tengo la respuesta a lo que me pediste. Respuesta: busca otra cosa más lento');
+    assert.equal((await reopened(launch())).speech, 'Tengo la respuesta a lo que me pediste: busca otra cosa más lento. Respuesta: busca otra cosa más lento');
     assert.equal((await reopened(launch())).speech, 'Mango listo. Puedes hablarme.');
   });
 
@@ -101,6 +107,6 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
     await sleep(SLOW_MS);
     await backend.stop();
     backend = await startBackend(dir, gateway.address().port);
-    assert.equal((await session(backend)(launch())).speech, 'Tengo la respuesta a lo que me pediste. Respuesta: qué tiempo hace mañana lento');
+    assert.equal((await session(backend)(launch())).speech, 'Tengo la respuesta a lo que me pediste: qué tiempo hace mañana lento. Respuesta: qué tiempo hace mañana lento');
   });
 });

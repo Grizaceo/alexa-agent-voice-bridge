@@ -78,7 +78,7 @@ test('Voice ID', async t => {
 
       // El dueño deja una pregunta lenta y cierra.
       const owner = alexaSession(backend, { personId: OWNER });
-      assert.match((await owner(intent('FreeBuscaIntent', { query: 'vuelos lento' }))).speech, /^Me va a tomar un momento/);
+      assert.match((await owner(intent('FreeBuscaIntent', { query: 'vuelos lento' }))).speech, /Me va a tomar un momento/);
       await owner(intent('AMAZON.StopIntent'));
       await sleep(SLOW_MS + 200);
 
@@ -89,7 +89,7 @@ test('Voice ID', async t => {
       assert.equal((await guest(intent('FreeQueIntent', { query: 'hora es' }))).speech, IGNORED);
 
       // El dueño abre: se le anuncia lo que pidió.
-      assert.equal((await alexaSession(backend, { personId: OWNER })(launch())).speech, 'Tengo la respuesta a lo que me pediste. Respuesta: busca vuelos lento');
+      assert.equal((await alexaSession(backend, { personId: OWNER })(launch())).speech, 'Tengo la respuesta a lo que me pediste: busca vuelos lento. Respuesta: busca vuelos lento');
     } finally {
       await backend.stop();
     }

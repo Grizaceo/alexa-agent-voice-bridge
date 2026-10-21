@@ -104,8 +104,11 @@ function alexaSession(backend, { personId: sessionPersonId = null } = {}) {
     assert.equal(res.status, 200, await res.clone().text());
     const body = await res.json();
     attributes = body.sessionAttributes || {};
+    const ssml = body.response.outputSpeech?.ssml || '';
     return {
-      speech: (body.response.outputSpeech?.ssml || '').replace(/<\/?speak>/g, ''),
+      speech: ssml.replace(/<audio[^>]*\/>/g, '').replace(/<\/?speak>/g, ''),
+      sounds: [...ssml.matchAll(/<audio src="([^"]+)"\/>/g)].map(m => m[1]),
+      card: body.response.card || null,
       ended: body.response.shouldEndSession === true,
       attributes,
     };
