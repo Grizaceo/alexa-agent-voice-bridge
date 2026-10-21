@@ -469,6 +469,8 @@ const FallbackIntentHandler = {
       requestType: Alexa.getRequestType(handlerInput.requestEnvelope),
       intentName: Alexa.getIntentName(handlerInput.requestEnvelope),
     });
+    // La TV casi nunca empieza con una palabra de la skill: llega aquí y, sin este filtro, mantenía la sesión abierta.
+    if (!speakerAllowed(handlerInput, 'fallback')) return ignoreSpeaker(handlerInput);
     return handlerInput.responseBuilder
       .speak(ssml('No entendí esa petición. Puedes intentar con: quién eres, háblame de ti, o ayúdame con una idea.'))
       .reprompt(ssml('Puedes decir: quién eres, háblame de ti, o ayúdame con una idea.'))
@@ -490,6 +492,7 @@ const UnknownIntentHandler = {
       intentName,
       slots: slotSummary,
     });
+    if (!speakerAllowed(handlerInput, 'unknown')) return ignoreSpeaker(handlerInput);
 
     const isSendToPhone = intentName === 'AMAZON.SendToPhoneIntent';
     const speech = isSendToPhone

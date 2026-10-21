@@ -95,6 +95,24 @@ test('Voice ID', async t => {
     }
   });
 
+  // En el Echo real (21-oct), la TV llegó como AMAZON.FallbackIntent y recibía la ayuda, sesión abierta 2 min.
+  await t.test('enforce: la TV que cae en FallbackIntent se ignora y cierra a la tercera; el dueño oye la ayuda', async () => {
+    const dir = tempDir();
+    const backend = await startBackend(dir, port, { VOICE_ID_MODE: 'enforce' });
+    try {
+      assert.match((await alexaSession(backend, { personId: OWNER })(intent('AMAZON.FallbackIntent'))).speech, /^No entendí esa petición/);
+      const tv = alexaSession(backend);
+      assert.equal((await tv(intent('AMAZON.FallbackIntent'))).speech, IGNORED);
+      assert.equal((await tv(intent('AMAZON.SendToPhoneIntent'))).speech, IGNORED);
+      const third = await tv(intent('AMAZON.FallbackIntent'));
+      assert.equal(third.speech, 'No reconozco esta voz. Hasta luego.');
+      assert.equal(third.ended, true);
+      assert.deepEqual(tasksIn(dir), []);
+    } finally {
+      await backend.stop();
+    }
+  });
+
   await t.test('VOICE_ID_SILENT=true: la voz ajena se ignora sin hablar', async () => {
     const dir = tempDir();
     const backend = await startBackend(dir, port, { VOICE_ID_MODE: 'enforce', VOICE_ID_SILENT: 'true' });
