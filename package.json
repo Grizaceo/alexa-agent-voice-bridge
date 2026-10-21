@@ -1,9 +1,12 @@
 {
   "name": "alexa-agent-voice-bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
-  "description": "Alexa Custom Skill que conecta un Echo con tu propio agente (Hermes Agent u otro endpoint compatible con OpenAI)",
+  "description": "Your own agent, any surface: an Alexa custom skill and a self-hosted MCP server (Streamable HTTP, 2026-07-28 and 2025-11-25) sharing one persistent task store, plus the Agent Skill that teaches voice assistants to use it.",
   "main": "src/server.js",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
@@ -24,5 +27,6 @@
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.3.1"
-  }
+  },
+  "license": "MIT"
 }
