@@ -6,8 +6,16 @@ const Alexa = require('ask-sdk-core');
 const { ExpressAdapter } = require('ask-sdk-express-adapter');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const agent = require('./agent');
+const { stripMarkdown } = agent;
+const { mountMcp } = require('./mcp');
 
 const PORT = Number(process.env.PORT || 3107);
+// Solo localhost: Tailscale Funnel llega por 127.0.0.1 y la spec MCP pide no exponer servidores locales.
+const HOST = process.env.HOST || '127.0.0.1';
+// Token del servidor MCP en /mcp. Sin él, /mcp responde 503.
+const MCP_TOKEN = process.env.MCP_TOKEN || '';
+// Hostnames permitidos en el header Origin de /mcp (los clientes que no son navegador no lo mandan).
+const MCP_ALLOWED_ORIGINS = (process.env.MCP_ALLOWED_ORIGINS || 'localhost,127.0.0.1,[::1]').split(',').map(s => s.trim()).filter(Boolean);
 // Nombre con que la skill se presenta por voz ("Mango listo. Puedes hablarme.").
 const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Mango';
 const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID || '';
@@ -94,17 +102,6 @@ function ssml(text) {
     .replace(/>/g, '&gt;')
     .trim();
   return `<speak>${safe}</speak>`;
-}
-// El agente responde en Markdown; la TTS de Alexa leería los asteriscos y almohadillas.
-function stripMarkdown(text) {
-  return String(text || '')
-    .replace(/```[\s\S]*?```/g, ' ')
-    .replace(/`([^`]*)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*/g, '$1')
-    .replace(/\*([^*]+)\*/g, '$1')
-    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/^\s*[-*•]\s+/gm, '')
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 // Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo").
 function normalizeSpokenQuery(text) {
@@ -515,7 +512,8 @@ app.use((req, res, next) => {
     return send(body);
   };
   res.on('finish', () => {
-    logDebug('http', { method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - startedAt, error: errorBody });
+    const mcpProtocol = req.path === '/mcp' ? req.headers['mcp-protocol-version'] || null : undefined;
+    logDebug('http', { method: req.method, path: req.path, status: res.statusCode, ms: Date.now() - startedAt, error: errorBody, mcpProtocol });
   });
   next();
 });
@@ -527,8 +525,12 @@ app.get('/health', (_req, res) => {
     skillIdConfigured: Boolean(ALEXA_SKILL_ID),
     gatewayConfigured: Boolean(HERMES_GATEWAY_URL),
     apiModel: HERMES_API_MODEL,
+    mcpEnabled: Boolean(MCP_TOKEN),
   });
 });
+
+// Servidor MCP: la otra superficie del mismo agente. Va antes del adapter de Alexa y sin parser JSON global.
+mountMcp(app, { token: MCP_TOKEN, allowedOrigins: MCP_ALLOWED_ORIGINS, log: logDebug });
 
 // Ruta raíz para el funnel (Tailscale proxy elimina /alexa del path prefix).
 // Alexa se configura con endpoint raíz en la consola de desarrollador.
@@ -541,9 +543,9 @@ app.post('/alexa', adapter.getRequestHandlers());
 // Recarga las tareas de data/tasks.json; las que quedaron pending pasan a failed.
 agent.initTasks({ log: logDebug });
 
-const server = app.listen(PORT, () => {
+const server = app.listen(PORT, HOST, () => {
   ensureSessionStore();
-  console.log(`[alexa-agent-voice-bridge] listening on :${PORT}`);
+  console.log(`[alexa-agent-voice-bridge] listening on ${HOST}:${PORT} (MCP ${MCP_TOKEN ? 'on /mcp' : 'off: set MCP_TOKEN'})`);
 });
 
 module.exports = { app, server };

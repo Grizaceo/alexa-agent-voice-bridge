@@ -92,6 +92,18 @@ async function callAgent(question, { history = [], hermesSessionKey = null } = {
   return { ok: true, text: reply };
 }
 
+// El agente responde en Markdown; una voz leería los asteriscos y almohadillas.
+function stripMarkdown(text) {
+  return String(text || '')
+    .replace(/```[\s\S]*?```/g, ' ')
+    .replace(/`([^`]*)`/g, '$1')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/\*([^*]+)\*/g, '$1')
+    .replace(/^\s{0,3}#{1,6}\s+/gm, '')
+    .replace(/^\s*[-*•]\s+/gm, '')
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+}
+
 // Tarea: { id, question, status: pending|done|failed, answer, createdAt, finishedAt, deliveredAt, origin: voice|mcp }.
 // Se guarda entera en `file` (tmp + rename) en cada cambio. Las fechas son ISO 8601.
 // En una tarea failed, `answer` lleva el motivo (lo que se diría por voz).
@@ -249,6 +261,7 @@ function tasks() {
 
 module.exports = {
   callAgent,
+  stripMarkdown,
   createTaskStore,
   initTasks,
   startTask: (question, origin, options) => tasks().startTask(question, origin, options),
