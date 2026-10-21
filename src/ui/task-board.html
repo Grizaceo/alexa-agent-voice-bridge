@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent task board</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: var(--color-background-primary, light-dark(#ffffff, #1c1c1e));
+    --bg-2: var(--color-background-secondary, light-dark(#f4f4f5, #2a2a2d));
+    --fg: var(--color-text-primary, light-dark(#18181b, #f4f4f5));
+    --fg-2: var(--color-text-secondary, light-dark(#52525b, #a1a1aa));
+    --line: var(--color-border-primary, light-dark(#e4e4e7, #3f3f46));
+    --accent: light-dark(#0e7490, #22d3ee);
+    --ok: light-dark(#15803d, #4ade80);
+    --warn: light-dark(#b45309, #fbbf24);
+    --bad: light-dark(#b91c1c, #f87171);
+    --radius: var(--border-radius-md, 10px);
+    --font: var(--font-sans, system-ui, -apple-system, "Segoe UI", sans-serif);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 14px; font: 14px/1.45 var(--font); color: var(--fg); background: var(--bg); }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+  h1 { font-size: 15px; margin: 0; }
+  .muted { color: var(--fg-2); font-size: 12px; }
+  ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+  li { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 12px; background: var(--bg); }
+  .row { display: flex; align-items: center; gap: 8px; }
+  .q { flex: 1; font-weight: 600; overflow-wrap: anywhere; }
+  .badge { font-size: 11px; font-weight: 700; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; background: var(--bg-2); color: var(--fg-2); white-space: nowrap; }
+  .badge.voice { color: var(--accent); }
+  .status { font-size: 12px; font-weight: 600; white-space: nowrap; }
+  .status.pending { color: var(--warn); }
+  .status.done { color: var(--ok); }
+  .status.failed { color: var(--bad); }
+  .answer { margin-top: 8px; padding: 8px 10px; border-radius: 8px; background: var(--bg-2); white-space: pre-wrap; overflow-wrap: anywhere; }
+  button { font: inherit; font-size: 12px; border: 1px solid var(--line); background: var(--bg-2); color: var(--fg); border-radius: 8px; padding: 4px 10px; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: default; }
+  form { display: flex; gap: 8px; margin-top: 12px; }
+  input { flex: 1; font: inherit; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); }
+  .empty { padding: 18px; text-align: center; color: var(--fg-2); border: 1px dashed var(--line); border-radius: var(--radius); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Your agent: voice and MCP tasks</h1>
+  <span class="muted" id="summary">connecting…</span>
+</header>
+<ul id="tasks"></ul>
+<form id="ask">
+  <input id="question" placeholder="Ask your agent… (the Echo can read the answer later)" autocomplete="off">
+  <button type="submit">Ask</button>
+</form>
+<p class="muted" id="note">Answers you collect here count as delivered: the Echo will not repeat them.</p>
+<script>
+  // MCP App view (io.modelcontextprotocol/ui, protocol 2026-01-26) without the SDK: JSON-RPC over postMessage.
+  const pending = new Map();
+  let nextId = 1;
+  let tasks = [];
+  const answers = new Map();
+  let refreshTimer = null;
+  let gotResult = false;
+
+  function send(message) { window.parent.postMessage({ jsonrpc: '2.0', ...message }, '*'); }
+  function request(method, params) {
+    const id = nextId++;
+    return new Promise((resolve, reject) => {
+      pending.set(id, { resolve, reject });
+      send({ id, method, params });
+    });
+  }
+  async function callTool(name, args) {
+    const result = await request('tools/call', { name, arguments: args });
+    if (result.structuredContent) return result.structuredContent;
+    try { return JSON.parse(result.content?.[0]?.text || '{}'); } catch { return {}; }
+  }
+
+  function el(tag, props = {}, children = []) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(props)) {
+      if (key === 'text') node.textContent = value;
+      else if (key === 'class') node.className = value;
+      else node.setAttribute(key, value);
+    }
+    for (const child of children) node.append(child);
+    return node;
+  }
+  function age(iso) {
+    const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000));
+    return s < 60 ? `${s}s ago` : s < 3600 ? `${Math.round(s / 60)} min ago` : `${Math.round(s / 3600)} h ago`;
+  }
+
+  function render() {
+    const list = document.getElementById('tasks');
+    list.replaceChildren();
+    if (!tasks.length) list.append(el('li', { class: 'empty', text: 'No tasks yet. Ask something here or on your Echo.' }));
+    for (const task of tasks) {
+      const collect = el('button', { text: task.status === 'pending' ? 'Wait for answer' : 'Collect answer' });
+      collect.addEventListener('click', async () => {
+        collect.disabled = true;
+        const result = await callTool('get_agent_result', { task_id: task.task_id, wait_seconds: task.status === 'pending' ? 15 : 0 });
+        if (result.answer) answers.set(task.task_id, result.answer);
+        await refresh();
+      });
+      const item = el('li', {}, [
+        el('div', { class: 'row' }, [
+          el('span', { class: `badge ${task.origin}`, text: task.origin === 'voice' ? 'ECHO' : 'MCP' }),
+          el('span', { class: 'q', text: task.question }),
+          el('span', { class: `status ${task.status}`, text: task.status }),
+        ]),
+        el('div', { class: 'row muted' }, [el('span', { text: age(task.created_at) }), answers.has(task.task_id) ? '' : collect]),
+      ]);
+      if (answers.has(task.task_id)) item.append(el('div', { class: 'answer', text: answers.get(task.task_id) }));
+      list.append(item);
+    }
+    const waiting = tasks.filter(task => task.status === 'pending').length;
+    document.getElementById('summary').textContent = `${tasks.length} task${tasks.length === 1 ? '' : 's'} · ${waiting} running`;
+    clearTimeout(refreshTimer);
+    if (waiting) refreshTimer = setTimeout(refresh, 4000);
+  }
+
+  async function refresh() {
+    const result = await callTool('list_tasks', { include_delivered: true });
+    tasks = result.tasks || [];
+    render();
+  }
+
+  document.getElementById('ask').addEventListener('submit', async event => {
+    event.preventDefault();
+    const input = document.getElementById('question');
+    const question = input.value.trim();
+    if (!question) return;
+    input.value = '';
+    const result = await callTool('ask_agent', { question, wait_seconds: 5 });
+    if (result.answer) answers.set(result.task_id, result.answer);
+    await refresh();
+  });
+
+  window.addEventListener('message', event => {
+    if (event.source !== window.parent) return;
+    const message = event.data || {};
+    if (message.id != null && pending.has(message.id) && !message.method) {
+      const { resolve, reject } = pending.get(message.id);
+      pending.delete(message.id);
+      return message.error ? reject(message.error) : resolve(message.result);
+    }
+    if (message.method === 'ui/notifications/tool-result') {
+      gotResult = true;
+      tasks = message.params?.structuredContent?.tasks || tasks;
+      render();
+    } else if (message.method === 'ui/notifications/host-context-changed') {
+      applyHostContext(message.params);
+    } else if (message.method === 'ui/resource-teardown') {
+      clearTimeout(refreshTimer);
+      send({ id: message.id, result: {} });
+    }
+  });
+
+  function applyHostContext(context = {}) {
+    for (const [name, value] of Object.entries(context.styles?.variables || {})) {
+      if (value) document.documentElement.style.setProperty(name, value);
+    }
+    if (context.theme) document.documentElement.style.colorScheme = context.theme;
+  }
+
+  new ResizeObserver(() => {
+    send({ method: 'ui/notifications/size-changed', params: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight } });
+  }).observe(document.documentElement);
+
+  (async () => {
+    const init = await request('ui/initialize', {
+      appCapabilities: { availableDisplayModes: ['inline'] },
+      clientInfo: { name: 'voice-agent-bridge-task-board', version: '1.0.0' },
+      protocolVersion: '2026-01-26',
+    });
+    applyHostContext(init?.hostContext);
+    send({ method: 'ui/notifications/initialized', params: {} });
+    render();
+    // Si el host no reenvía el resultado de list_tasks, la vista lo pide ella misma.
+    setTimeout(() => { if (!gotResult) refresh(); }, 1500);
+  })();
+</script>
+</body>
+</html>

@@ -103,6 +103,22 @@ test('MCP: herramientas en ambas eras, autenticación y Origin', async t => {
     });
   }
 
+  await t.test('MCP App: list_tasks enlaza el tablero ui:// y el recurso es HTML de MCP Apps', async () => {
+    const client = await connect(backend, { mode: { pin: '2026-07-28' } });
+    const { tools } = await client.listTools();
+    const uri = 'ui://voice-agent-bridge/task-board.html';
+    assert.deepEqual(tools.find(tool => tool.name === 'list_tasks')._meta, { ui: { resourceUri: uri } });
+    assert.ok(tools.filter(tool => tool.name !== 'list_tasks').every(tool => !tool._meta?.ui));
+    const { contents } = await client.readResource({ uri });
+    assert.equal(contents[0].mimeType, 'text/html;profile=mcp-app');
+    assert.deepEqual(contents[0]._meta, { ui: { prefersBorder: true } });
+    assert.match(contents[0].text, /^<!DOCTYPE html>/);
+    assert.match(contents[0].text, /ui\/initialize/);
+    // Sin orígenes externos: la CSP por defecto de MCP Apps bloquea todo lo que no sea inline.
+    assert.doesNotMatch(contents[0].text, /<script[^>]+src=|<link[^>]+href=|https?:\/\//);
+    await client.close();
+  });
+
   await t.test('una entrada inválida vuelve como error de la herramienta (SEP-1303)', async () => {
     const client = await connect(backend, null);
     const result = await client.callTool({ name: 'ask_agent', arguments: {} });

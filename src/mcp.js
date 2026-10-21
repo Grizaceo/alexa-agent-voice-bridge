@@ -2,6 +2,8 @@
 // Stateless: cada request HTTP crea su McpServer. El estado vive en src/agent.js y viaja como task_id.
 // Sirve 2026-07-28 a los clientes que lo negocian y 2025-11-25 (o anteriores) a los demás, en el mismo endpoint.
 const crypto = require('crypto');
+const fs = require('fs');
+const path = require('path');
 const { McpServer, createMcpHandler } = require('@modelcontextprotocol/server');
 const { toNodeHandler, originValidation } = require('@modelcontextprotocol/node');
 const { z } = require('zod');
@@ -10,6 +12,10 @@ const { loadSkills, registerSkills, skillsCapabilities } = require('./skills');
 const { version } = require('../package.json');
 
 const MAX_WAIT_SECONDS = 20;
+// MCP App (extensión io.modelcontextprotocol/ui): tablero de tareas que los hosts compatibles muestran junto a list_tasks.
+const TASK_BOARD_URI = 'ui://voice-agent-bridge/task-board.html';
+const TASK_BOARD_MIME = 'text/html;profile=mcp-app';
+const TASK_BOARD_HTML = fs.readFileSync(path.join(__dirname, 'ui', 'task-board.html'), 'utf8');
 
 const INSTRUCTIONS = [
   "This server is a bridge to the owner's personal agent: the same agent they talk to from their Amazon Echo.",
@@ -88,6 +94,7 @@ function buildServer(log, skills) {
       tasks: z.array(z.object({ task_id: z.string(), question: z.string(), status: TASK_STATUS, origin: z.enum(['voice', 'mcp']), created_at: z.string() })),
     }),
     annotations: { readOnlyHint: true, openWorldHint: false },
+    _meta: { ui: { resourceUri: TASK_BOARD_URI } },
   }, async ({ include_delivered }) => {
     const tasks = agent.listTasks({ includeDelivered: Boolean(include_delivered) }).map(task => ({
       task_id: task.id,
@@ -99,6 +106,12 @@ function buildServer(log, skills) {
     log('mcp_tool', { tool: 'list_tasks', count: tasks.length });
     return toolResult({ tasks });
   });
+
+  // Los hosts sin MCP Apps ignoran _meta.ui y usan el texto de list_tasks.
+  const boardMeta = { ui: { prefersBorder: true } };
+  server.registerResource('task-board', TASK_BOARD_URI, { mimeType: TASK_BOARD_MIME, description: 'Interactive board of the agent tasks from every surface.', _meta: boardMeta }, async () => ({
+    contents: [{ uri: TASK_BOARD_URI, mimeType: TASK_BOARD_MIME, text: TASK_BOARD_HTML, _meta: boardMeta }],
+  }));
 
   return server;
 }
