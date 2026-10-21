@@ -629,7 +629,7 @@ app.use((req, res, next) => {
 app.get('/health', (_req, res) => {
   res.json({
     ok: true,
-    service: 'alexa-davi-mvp',
+    service: 'alexa-agent-voice-bridge',
     skillIdConfigured: Boolean(ALEXA_SKILL_ID),
     gatewayConfigured: Boolean(HERMES_GATEWAY_URL),
     apiModel: HERMES_API_MODEL,
@@ -646,7 +646,7 @@ app.post('/alexa', adapter.getRequestHandlers());
 
 const server = app.listen(PORT, () => {
   ensureSessionStore();
-  console.log(`[alexa-davi-mvp] listening on :${PORT}`);
+  console.log(`[alexa-agent-voice-bridge] listening on :${PORT}`);
 });
 
 module.exports = { app, server };
