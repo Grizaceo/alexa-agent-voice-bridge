@@ -1,7 +1,7 @@
-# HANDOFF — Alexa+ track (Build, Ship, Shape: Amazon Developer Hackathon)
+# Hackathon log — Alexa+ track (Build, Ship, Shape: Amazon Developer Hackathon)
 
-> Documento de trabajo para el agente que implementa. **Antes de publicar el repo, muévelo a `docs/hackathon-log.md` o elimínalo** (fase F8).
-> Los datos propios de la máquina (puertos en uso, hostnames, procesos de producción) están en `.hackathon/LOCAL_NOTES.md`, que no se versiona.
+> Registro del proceso, en español. Era `HANDOFF.md`, el documento de trabajo que guió al agente de código fase por fase, con la verificación exigida en cada una; se publica tal cual como evidencia de lo construido durante la ventana.
+> Las rutas `.hackathon/…` son notas locales que no se versionan (datos de la máquina, evidencia cruda, borradores de Devpost).
 
 ## Estado (actualizado el 2026-10-21, 05:30, rama `hackathon/alexa-plus`, sin push)
 
@@ -17,7 +17,7 @@
 | F6 docs y Devpost | ✅ (con **[confirmar]**) | README/SETUP en inglés; `.hackathon/` (friction log, feedback, feature requests, devpost, video) |
 | Extra tras brainstorm y juez | ✅ | Pulido de voz (repetir lo entendido, recordar la pregunta, sonido, tarjeta), `npm run demo`, MCP App (tablero, verificado en MCPJam) |
 | F7 web que simula Alexa+ | ⛔ descartada | La reemplazan la MCP App y `npm run demo` |
-| F8 publicar | 🟡 semi-gate hecho | `.hackathon/f8-gate.md` |
+| F8 publicar | ✅ | Repo público `Grizaceo/alexa-agent-voice-bridge` (21-oct), commits con el correo noreply de GitHub; este archivo pasó a `docs/hackathon-log.md` |
 
 Producción (3107) corre el HEAD de la rama con `VOICE_ID_MODE=enforce` y el dueño registrado (21-oct, 19:02).
 

@@ -148,8 +148,9 @@ The voice bridge began as a private prototype in May–June 2026 (Echo → skill
   - MCP server on SDK v2 in both protocol eras (F2);
   - voice ↔ MCP flows (F3);
   - the Agent Skill, served over MCP (F4);
-  - Voice ID owner-only mode (F4b);
+  - Voice ID owner-only mode (F4b), verified on a real Echo;
   - all the tests in `test/` except `nlu-cases.json`.
+- **The phase-by-phase work log** (in Spanish), with the verification required for each phase: [`docs/hackathon-log.md`](docs/hackathon-log.md).
 
 ## Setup
 
