@@ -1,5 +1,7 @@
 # Alexa → tu propio agente
 
+> Guía original de la parte de voz. El servidor MCP, la Agent Skill, la MCP App, Voice ID y la demo de un comando están en el [README en inglés](../../README.md).
+
 Una Alexa Custom Skill privada para hablar desde un Echo con **tu** agente, sea [Hermes Agent](https://github.com/NousResearch/hermes-agent) o cualquier endpoint `/v1/chat/completions` compatible con OpenAI. No usa skills de terceros ni Lambda: el backend corre en tu máquina y Amazon llega a él por Tailscale Funnel.
 
 ```text
@@ -33,7 +35,7 @@ Esto es lo que funcionó después de varios intentos que no llegaban al Echo:
 2. **El habla libre necesita una palabra fija antes del texto.** `AMAZON.SearchQuery` no acepta una muestra que sea solo `{query}`, así que lo que dices sin "pregúntale…" caía en `FallbackIntent`. La solución es un intent por palabra inicial (`FreeQueIntent` → `qué {query}`, `FreeBuscaIntent` → `busca {query}`…). Alexa no entrega esa palabra en el slot, así que el backend la vuelve a anteponer leyéndola de la primera muestra del modelo. En es-US, esto pasó las frases libres de 0/7 a 6/7; la que siguió fallando empezaba con "dime" (ver el punto 3).
 3. **En es-US, "dime" es la moneda gringa** (*dime*, 10 centavos): se interpreta como número y nunca llega a la skill. Hay que empezar con otra palabra. En es-MX, `profile-nlu` falla con verbos con pronombre pegado escritos con tilde ("pregúntale").
 4. **Alexa convierte "un"/"una" en "1"** dentro de `SearchQuery` ("1 correo"). El backend lo revierte.
-5. **Alexa corta a los ~8 s y un agente con herramientas tarda de 5 s a varios minutos.** Las respuestas progresivas no amplían ese límite. Por eso la consulta sigue en segundo plano, la respuesta queda guardada 30 min y se entrega con "repite" o al volver a abrir. El límite de espera al agente es de 10 min: un pronóstico del tiempo con búsqueda tardó 138 s.
+5. **Alexa corta a los ~8 s y un agente con herramientas tarda de 5 s a varios minutos.** Las respuestas progresivas no amplían ese límite. Por eso la consulta sigue en segundo plano, la respuesta queda guardada en `data/tasks.json` (24 h, sobrevive reinicios) y se entrega con "repite" o al volver a abrir. El límite de espera al agente es de 10 min: un pronóstico del tiempo con búsqueda tardó 138 s.
 6. **El agente responde en Markdown y la voz leería los asteriscos.** Se limpia antes de hablar.
 7. **Alexa exige HTTPS en el puerto 443, y Tailscale Funnel publica todo `host:443`.** No compartas el 443 de esa máquina con otros servicios de `tailscale serve`: Funnel los expondría también. Publica solo `/alexa`.
 8. **La firma de Amazon se verifica siempre.** El adapter de `ask-sdk` rechaza con 400 sin dejar log, así que el backend registra cada request HTTP en `data/alexa-debug.log`.
@@ -77,7 +79,7 @@ La palabra de invocación (`invocationName`), las palabras iniciales (`Free*Inte
 
 ## Limitaciones conocidas
 
-- Hay una sola respuesta pendiente por usuario: una nueva pregunta lenta reemplaza a la anterior.
-- Las respuestas pendientes viven en memoria y se pierden si el backend se reinicia.
+- Un solo dueño por despliegue: todas las tareas son de la misma persona.
+- Una tarea que está corriendo cuando el backend se reinicia queda como fallida ("Tarea interrumpida por reinicio").
 - El historial de conversación dura lo que dura la sesión de Alexa.
 - No es una skill publicable tal cual: le faltan política de privacidad, account linking para que cada usuario use su propio agente y hosting que no dependa de un PC.
