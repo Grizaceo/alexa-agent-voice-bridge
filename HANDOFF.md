@@ -1,0 +1,114 @@
+# HANDOFF — Alexa+ track (Build, Ship, Shape: Amazon Developer Hackathon)
+
+> Documento de trabajo para el agente que implementa. **Antes de publicar el repo, muévelo a `docs/hackathon-log.md` o elimínalo** (fase F8).
+> Los datos propios de la máquina (puertos en uso, hostnames, procesos de producción) están en `.hackathon/LOCAL_NOTES.md`, que no se versiona.
+
+## Estado al crear este repo (2026-10-21)
+
+- **Funciona:** Alexa Custom Skill clásica + backend Node (`src/server.js`) probados en un Echo real (es-US). Incluye:
+  - habla libre con `Free<Palabra>Intent`;
+  - modo pensando (5 s → respuesta pendiente; "repite"; se lee al reabrir);
+  - cierre con "maracuyá";
+  - `npm run skill` y `npm run nlu` (32/32 en es-US).
+
+  Ver `README.md` y `docs/SETUP.md`.
+- **No existe todavía:** el servidor MCP, la Agent Skill, la persistencia de tareas, las docs en inglés ni el material de Devpost.
+- **Historia limpia:** este repo nació de un export de los archivos versionados de un repo privado anterior, sin su historia, que contenía datos personales.
+
+## Objetivo
+
+Entregar al track **Alexa+** antes de **2026-10-23 19:00 UTC** (12:00 PDT). Requisitos oficiales verificados en `.hackathon/REQUIREMENTS.md` (fuente: https://amazonappdev2026.devpost.com/rules, leída el 2026-10-21).
+
+Puntos que definen el diseño:
+- El track exige un **servidor MCP self-hosted (spec 2025-11-25 o posterior, Streamable HTTP)** o una Agent Skill, y que el repo **use esa tecnología en runtime**.
+- Para Alexa+, un "wrapper MCP básico" o una pregunta/respuesta de un turno cuentan como ideas *obvias*. Lo *creativo* es un flujo agéntico, **estado entre sesiones**, MCP Apps o Agent Skills.
+- No existe una vía para conectar un MCP a un Echo real. El Echo sigue entrando por la skill clásica.
+
+## Idea de la entrega
+
+**"Your own agent, any surface — answers that wait for you."** Un solo agente y un solo almacén de tareas largas, compartido por dos superficies:
+1. **Voz:** el Echo, con la skill clásica.
+2. **MCP:** cualquier cliente MCP, que hace el papel de Alexa+.
+
+Una tarea lenta pedida por voz se recoge después desde un cliente MCP, o al revés. Es la respuesta al límite de 8 s de Alexa, con estado que sobrevive a sesiones y reinicios.
+
+## Contrato fijo (el implementador no lo re-decide)
+
+**Módulo `src/agent.js`**, compartido por ambas superficies:
+- `callAgent(question, { history })`: lo que hoy es `callHermesGateway`, sin cambiar su comportamiento.
+- Almacén de tareas `{ id, question, status: pending|done|failed, answer, createdAt, finishedAt, deliveredAt, origin: "voice"|"mcp" }`:
+  - se persiste en `data/tasks.json` con escritura atómica (tmp + rename);
+  - las tareas se recargan al arrancar; una que quedó `pending` cuando el proceso murió pasa a `failed` con motivo "interrumpida por reinicio";
+  - TTL configurable, `TASK_TTL_MS`, por defecto 24 h.
+- `startTask(question, origin)`, `waitForTask(id, ms)`, `getTask(id)`, `latestUndelivered()` y `markDelivered(id)`.
+- **Un solo dueño por despliegue** (es un agente personal). No hay multiusuario; documentarlo como límite.
+- **Entrega:** una tarea queda `delivered` cuando cualquier superficie entrega su respuesta. El Echo, al abrirse, solo anuncia la última tarea `done` no entregada.
+
+**Skill clásica:** `src/server.js` reemplaza su `pendingReplies` en memoria por `src/agent.js`. El comportamiento de voz no cambia, salvo que ahora sobrevive a reinicios y el TTL es de 24 h.
+
+**Servidor MCP:**
+- Ruta `POST/GET/DELETE /mcp` en el mismo proceso Express.
+- SDK oficial `@modelcontextprotocol/sdk` con **versión exacta fijada** y transporte **Streamable HTTP**.
+- Protocolo negociado **2025-11-25 o posterior**.
+- Exige `Authorization: Bearer ${MCP_TOKEN}`; sin él responde 401.
+
+Herramientas (todas devuelven texto limpio, apto para voz, sin Markdown):
+
+| Herramienta | Entrada | Salida |
+|---|---|---|
+| `ask_agent` | `question: string`, `wait_seconds?: number` (por defecto 5, máximo 20) | `{status:"done", answer}` o `{status:"pending", task_id}` |
+| `get_agent_result` | `task_id: string`, `wait_seconds?: number` (por defecto 0, máximo 20) | `{status:"done"\|"pending"\|"failed"\|"expired", answer?}` |
+| `list_tasks` | `include_delivered?: boolean` | `[{task_id, question, status, origin, created_at}]` |
+
+Si la spec 2025-11-25 trae una primitiva nativa para tareas largas (Tasks) y el SDK la implementa, **agrégala además** de las herramientas de polling: los clientes MCP varían y el polling es el piso común.
+
+**Agent Skill** en `skills/voice-agent-bridge/SKILL.md`, con el formato abierto de Agent Skills. Le enseña a un agente tipo Alexa+ a usar estas herramientas:
+- respuestas de 1–2 frases;
+- patrón asíncrono: avisar, seguir conversando y recoger después;
+- nunca empezar una frase de usuario con "dime" en es-US;
+- cerrar con la palabra de cierre.
+
+## Fases (en orden; cada una cierra con su verificación)
+
+| Fase | Trabajo | Verificación exigida (evidencia real, no prosa) |
+|---|---|---|
+| F0 | Leer la spec MCP 2025-11-25 (transporte, versión, ¿Tasks?) y el SDK. Elegir la versión exacta del SDK. **Reportar al usuario antes de construir.** | Enlaces y fecha de lectura anotados al inicio de la sección F0 de `.hackathon/NOTES.md` |
+| F1 | `src/agent.js` y persistencia; migrar `server.js` | `npm run check`; tests de `node:test` del almacén (persistencia, reinicio, TTL, entrega); requests sintéticas de voz contra un puerto de pruebas con `ALEXA_SKIP_VERIFICATION=true` y un gateway falso |
+| F2 | Servidor MCP y autenticación | Tests con el cliente del SDK contra un servidor local: listar herramientas, `ask_agent` rápido y lento, `get_agent_result`, 401 sin token. Una sesión real con MCP Inspector (versión fijada) |
+| F3 | Flujo entre superficies | Test: tarea creada por voz y recogida por MCP, y al revés. Luego `npm run nlu` (32/32) y `npm run skill -- simulate` contra la skill real, ya con este repo como producción (ver LOCAL_NOTES) |
+| F4 | Agent Skill | Frontmatter YAML válido (parsearlo); un agente que la carga y usa el MCP en una demo |
+| F5 | Mini challenge Open Source: una **contribución adicional**. Propuesta: PR a `alexa/ask-cli` para que `util generate-lwa-tokens` cree `~/.ask/cli_config` si falta y no exija TTY para el `(Y/n)` | Tests del propio repo de ask-cli en verde. **Pedir permiso al usuario antes de hacer fork, push o abrir el PR** |
+| F6 | `README.md` en inglés (el actual pasa a `docs/es/`), con "what we built during the submission window"; `.hackathon/`: `product-feedback.md`, `friction-log.md` (formato oficial por entrada), `feature-requests.md`, descripción para Devpost y guion del video | Cada afirmación técnica del README se puede comprobar con un comando o un archivo del repo |
+| F7 | *(Opcional)* Mini web que simule Alexa+: push-to-talk y un agente que use este MCP | Solo si F0–F6 están completas el jueves |
+| F8 | Publicar: repo GitHub público, LICENSE visible en "About"; mover o borrar este HANDOFF | **Pedir permiso al usuario antes de crear el repo remoto o hacer push** |
+
+## Plan B
+
+- **Si el SDK no negocia 2025-11-25:** usar el último release que sí lo haga; si ninguno, implementar el transporte Streamable HTTP según la spec y documentarlo.
+- **Si Tasks no existe o el SDK no la soporta:** quedarse solo con el polling (ya es el contrato).
+- **Si falta tiempo:** se cae F7. En F5, en vez del PR, publicar `scripts/nlu-check.js` como repo independiente (`alexa-nlu-check`, MIT, con tests).
+
+## Material para el friction log (incidentes reales, 2026-10-21)
+
+Cada entrada debe quedar con el formato oficial: tarea, pasos, esperado vs. real, severidad, workaround y sugerencia.
+
+1. El reconocimiento de voz de es-US transcribía la invocación "davi" como "david" o "dabi". La invocación exige coincidencia exacta y Alexa no da pistas ("no tengo muy claro cómo ayudarte con eso"). Workaround: invocación "mango".
+2. `AMAZON.SearchQuery` no acepta una muestra que sea solo `{query}`, así que el habla libre caía en `FallbackIntent`. Workaround: un intent por palabra inicial, y el backend la re-antepone.
+3. En es-US, "dime" se interpreta como la moneda (*dime*) y termina en `SendToPhoneIntent` o en un slot numérico.
+4. `SearchQuery` normaliza "un"/"una" a "1".
+5. En es-MX, `profile-nlu` falla con enclíticos escritos con tilde ("pregúntale"); sin tilde funciona.
+6. El límite de ~8 s por respuesta; las respuestas progresivas no lo amplían. Workaround: modo pensando.
+7. `ask util generate-lwa-tokens` falla si no existe `~/.ask/cli_config`, y el `(Y/n)` posterior al login exige TTY.
+8. El adapter de `ask-sdk-express-adapter` responde 400/500 sin registrar el motivo.
+9. Alexa exige el puerto 443, y Tailscale Funnel publica todo `host:443`, incluidas otras rutas de `serve`.
+10. El simulador (`simulate-skill`) no prueba el reconocimiento de voz, que era justamente lo que fallaba en el Echo.
+11. `GET /v1/vendors` devuelve el nombre de perfil, lo que me hizo creer que la cuenta developer era otra que la del Echo.
+12. No hay API para crear rutinas de Alexa.
+13. No hay vía para conectar un MCP propio a Alexa+ en un Echo es-US.
+
+## Restricciones
+
+- No hacer push, crear repos remotos ni abrir PRs sin permiso explícito del usuario.
+- No imprimir tokens ni el contenido de `.env`.
+- No borrar archivos sin permiso.
+- No reiniciar el backend de producción sin avisar (ver LOCAL_NOTES).

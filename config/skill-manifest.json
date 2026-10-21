@@ -1,0 +1,45 @@
+{
+  "manifest": {
+    "apis": {
+      "custom": {
+        "endpoint": {
+          "uri": "https://REEMPLAZADO-POR-ALEXA_ENDPOINT/alexa",
+          "sslCertificateType": "Trusted"
+        },
+        "interfaces": []
+      }
+    },
+    "manifestVersion": "1.0",
+    "publishingInformation": {
+      "locales": {
+        "es-US": {
+          "name": "REEMPLAZADO-POR-ASSISTANT_NAME",
+          "summary": "Habla con tu propio agente desde Alexa.",
+          "description": "Puente privado entre Alexa y un agente propio (Hermes Agent u otro endpoint compatible con OpenAI).",
+          "examplePhrases": ["Alexa, abre mango", "qué hora es en Santiago", "busca el clima de mañana"],
+          "keywords": []
+        },
+        "es-MX": {
+          "name": "REEMPLAZADO-POR-ASSISTANT_NAME",
+          "summary": "Habla con tu propio agente desde Alexa.",
+          "description": "Puente privado entre Alexa y un agente propio (Hermes Agent u otro endpoint compatible con OpenAI).",
+          "examplePhrases": ["Alexa, abre mango", "qué hora es en Santiago", "busca el clima de mañana"],
+          "keywords": []
+        },
+        "es-ES": {
+          "name": "REEMPLAZADO-POR-ASSISTANT_NAME",
+          "summary": "Habla con tu propio agente desde Alexa.",
+          "description": "Puente privado entre Alexa y un agente propio (Hermes Agent u otro endpoint compatible con OpenAI).",
+          "examplePhrases": ["Alexa, abre mango", "qué hora es en Santiago", "busca el clima de mañana"],
+          "keywords": []
+        }
+      },
+      "category": "KNOWLEDGE_AND_TRIVIA",
+      "distributionCountries": [],
+      "isAvailableWorldwide": true
+    },
+    "privacyAndCompliance": {
+      "locales": { "es-US": {}, "es-MX": {}, "es-ES": {} }
+    }
+  }
+}

@@ -1,0 +1,476 @@
+{
+  "interactionModel": {
+    "languageModel": {
+      "invocationName": "mango",
+      "intents": [
+        {
+          "name": "AboutDaviIntent",
+          "samples": [
+            "quién eres",
+            "quien eres",
+            "qué eres",
+            "que eres",
+            "háblame de ti",
+            "hablame de ti",
+            "cuéntame quién eres",
+            "cuentame quien eres",
+            "explícame quién eres",
+            "explicame quien eres",
+            "quiero saber quién eres",
+            "quiero saber quien eres"
+          ]
+        },
+        {
+          "name": "CapabilitiesIntent",
+          "samples": [
+            "para qué sirves",
+            "para que sirves",
+            "cómo puedes ayudarme",
+            "como puedes ayudarme",
+            "qué puedes hacer",
+            "que puedes hacer",
+            "en qué puedes ayudarme",
+            "en que puedes ayudarme"
+          ]
+        },
+        {
+          "name": "TalkToDaviIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "pregúntale {query}",
+            "preguntale {query}",
+            "consulta {query}",
+            "responde {query}",
+            "explícame {query}",
+            "explicame {query}",
+            "cuéntame {query}",
+            "cuentame {query}",
+            "quiero saber {query}",
+            "ayúdame con {query}",
+            "ayudame con {query}",
+            "háblame sobre {query}",
+            "hablame sobre {query}",
+            "necesito ayuda con {query}"
+          ]
+        },
+        {
+          "name": "FreeQueIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "qué {query}",
+            "que {query}"
+          ]
+        },
+        {
+          "name": "FreeCualIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuál {query}",
+            "cual {query}"
+          ]
+        },
+        {
+          "name": "FreeCualesIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuáles {query}",
+            "cuales {query}"
+          ]
+        },
+        {
+          "name": "FreeComoIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cómo {query}",
+            "como {query}"
+          ]
+        },
+        {
+          "name": "FreeCuandoIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuándo {query}",
+            "cuando {query}"
+          ]
+        },
+        {
+          "name": "FreeCuantoIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuánto {query}",
+            "cuanto {query}"
+          ]
+        },
+        {
+          "name": "FreeCuantosIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuántos {query}",
+            "cuantos {query}"
+          ]
+        },
+        {
+          "name": "FreeCuantasIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "cuántas {query}",
+            "cuantas {query}"
+          ]
+        },
+        {
+          "name": "FreeDondeIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "dónde {query}",
+            "donde {query}"
+          ]
+        },
+        {
+          "name": "FreePorQueIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "por qué {query}",
+            "por que {query}"
+          ]
+        },
+        {
+          "name": "FreeQuienIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "quién {query}",
+            "quien {query}"
+          ]
+        },
+        {
+          "name": "FreeHayIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "hay {query}"
+          ]
+        },
+        {
+          "name": "FreeTengoIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "tengo {query}"
+          ]
+        },
+        {
+          "name": "FreeMisIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "mis {query}"
+          ]
+        },
+        {
+          "name": "FreeEstadoIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "estado {query}"
+          ]
+        },
+        {
+          "name": "FreeBuscaIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "busca {query}",
+            "búscame {query}",
+            "buscame {query}"
+          ]
+        },
+        {
+          "name": "FreeResumeIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "resume {query}",
+            "resúmeme {query}",
+            "resumeme {query}"
+          ]
+        },
+        {
+          "name": "FreeRevisaIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "revisa {query}"
+          ]
+        },
+        {
+          "name": "FreeDameIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "dame {query}"
+          ]
+        },
+        {
+          "name": "FreeDimeIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "dime {query}"
+          ]
+        },
+        {
+          "name": "FreeLeeIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "lee {query}",
+            "léeme {query}",
+            "leeme {query}"
+          ]
+        },
+        {
+          "name": "FreeHazIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "haz {query}",
+            "hazme {query}"
+          ]
+        },
+        {
+          "name": "FreeAnotaIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "anota {query}"
+          ]
+        },
+        {
+          "name": "FreeRecuerdameIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "recuérdame {query}",
+            "recuerdame {query}"
+          ]
+        },
+        {
+          "name": "FreeEscribeIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "escribe {query}",
+            "escríbeme {query}",
+            "escribeme {query}"
+          ]
+        },
+        {
+          "name": "FreePonIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "pon {query}",
+            "ponme {query}"
+          ]
+        },
+        {
+          "name": "FreeReproduceIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "reproduce {query}"
+          ]
+        },
+        {
+          "name": "FreeMuestraIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "muestra {query}",
+            "muéstrame {query}",
+            "muestrame {query}"
+          ]
+        },
+        {
+          "name": "FreeMandaIntent",
+          "slots": [
+            {
+              "name": "query",
+              "type": "AMAZON.SearchQuery"
+            }
+          ],
+          "samples": [
+            "manda {query}",
+            "mándame {query}",
+            "mandame {query}"
+          ]
+        },
+        {
+          "name": "LinkIntent",
+          "slots": [
+            {
+              "name": "pin",
+              "type": "AMAZON.NUMBER"
+            }
+          ],
+          "samples": [
+            "mi pin es {pin}",
+            "vincula {pin}",
+            "código {pin}"
+          ]
+        },
+        {
+          "name": "AMAZON.HelpIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.RepeatIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.CancelIntent",
+          "samples": []
+        },
+        {
+          "name": "AMAZON.StopIntent",
+          "samples": [
+            "maracuyá",
+            "maracuya"
+          ]
+        },
+        {
+          "name": "AMAZON.FallbackIntent",
+          "samples": []
+        }
+      ],
+      "types": []
+    }
+  }
+}

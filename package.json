@@ -1,0 +1,20 @@
+{
+  "name": "alexa-agent-voice-bridge",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Alexa Custom Skill que conecta un Echo con tu propio agente (Hermes Agent u otro endpoint compatible con OpenAI)",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "check": "node --check src/server.js && node --check scripts/skill.js && node --check scripts/nlu-check.js",
+    "skill": "node scripts/skill.js",
+    "nlu": "node scripts/nlu-check.js"
+  },
+  "dependencies": {
+    "ask-sdk-core": "^2.14.0",
+    "ask-sdk-express-adapter": "^2.14.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.2"
+  }
+}

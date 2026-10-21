@@ -1,0 +1,8 @@
+node_modules/
+data/
+.env
+*.zip
+# Versión Lambda antigua (no soporta respuestas pendientes en memoria); ya no se usa.
+lambda/
+# Notas privadas del hackatón (requisitos, borradores); no se publican.
+.hackathon/

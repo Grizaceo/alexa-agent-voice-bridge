@@ -1,0 +1,42 @@
+{
+  "_comment": "Frases dichas DENTRO de la sesión (después de 'Alexa, abre mango'). 'expect' es el intent que queremos que Alexa elija; 'DAVI' acepta TalkToDaviIntent o cualquier Free*Intent. Las de group=free son habla libre sin frase portadora: el problema que hacía caer en Fallback.",
+  "cases": [
+    { "group": "anchored", "utterance": "pregúntale qué tiempo hace mañana", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "consulta el estado del sistema", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "explícame qué es un agente", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "ayúdame con mi búsqueda de trabajo", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "quiero saber qué procesos están corriendo en la gpu", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "cuéntame las noticias de hoy", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "necesito ayuda con un correo", "expect": "DAVI" },
+
+    { "group": "fixed", "utterance": "quién eres", "expect": "AboutDaviIntent" },
+    { "group": "fixed", "utterance": "háblame de ti", "expect": "AboutDaviIntent" },
+    { "group": "fixed", "utterance": "qué puedes hacer", "expect": "CapabilitiesIntent" },
+    { "group": "fixed", "utterance": "para qué sirves", "expect": "CapabilitiesIntent" },
+    { "group": "fixed", "utterance": "ayuda", "expect": "AMAZON.HelpIntent" },
+    { "group": "fixed", "utterance": "repite", "expect": "AMAZON.RepeatIntent" },
+    { "group": "fixed", "utterance": "adiós", "expect": "AMAZON.StopIntent" },
+
+    { "group": "free", "utterance": "qué procesos están corriendo en la gpu", "expect": "DAVI" },
+    { "group": "free", "utterance": "estado del sistema", "expect": "DAVI" },
+    { "group": "free", "utterance": "cómo está el sistema", "expect": "DAVI" },
+    { "group": "free", "utterance": "resume mis pendientes", "expect": "DAVI" },
+    { "group": "free", "utterance": "cuál es mi próxima reunión", "expect": "DAVI" },
+    { "group": "free", "utterance": "qué hay de nuevo", "expect": "DAVI" },
+    { "group": "free", "utterance": "busca ofertas de trabajo en santiago", "expect": "DAVI" },
+
+    { "group": "collision", "utterance": "quién ganó el partido ayer", "expect": "DAVI" },
+    { "group": "collision", "utterance": "mi pin es 1234", "expect": "LinkIntent" },
+    { "group": "collision", "utterance": "dime el clima de santiago", "expect": "AMAZON.FallbackIntent", "note": "es-US oye dime como la moneda (10 centavos): no empezar con dime" },
+    { "group": "collision", "utterance": "cómo puedes ayudarme", "expect": "DAVI" },
+    { "group": "collision", "utterance": "para", "expect": "AMAZON.StopIntent" },
+    { "group": "collision", "utterance": "cancela", "expect": "AMAZON.CancelIntent" },
+
+    { "group": "tv", "utterance": "pon un video de gatos en la tele", "expect": "DAVI" },
+    { "group": "tv", "utterance": "reproduce lofi en youtube en la tele", "expect": "DAVI" },
+    { "group": "tv", "utterance": "muéstrame el trailer de dune en la tele", "expect": "DAVI" },
+    { "group": "tv", "utterance": "manda a la tele el último video de veritasium", "expect": "DAVI" },
+
+    { "group": "close", "utterance": "maracuyá", "expect": "AMAZON.StopIntent" }
+  ]
+}
