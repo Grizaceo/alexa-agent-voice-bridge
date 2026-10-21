@@ -5,6 +5,8 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
+const crypto = require('crypto');
+const { z } = require('zod');
 const { Client, StreamableHTTPClientTransport } = require('@modelcontextprotocol/client');
 const { MCP_TOKEN, SLOW_MS, startGateway, startBackend, readTasks } = require('./helpers');
 
@@ -72,6 +74,31 @@ test('MCP: herramientas en ambas eras, autenticación y Origin', async t => {
       assert.deepEqual(await call(client, 'get_agent_result', { task_id: 'no-existe' }), { status: 'expired' });
       // wait_seconds sobre el máximo se recorta a 20 s en vez de fallar.
       assert.equal((await call(client, 'ask_agent', { question: 'hola', wait_seconds: 999 })).status, 'done');
+      await client.close();
+    });
+  }
+
+  for (const era of ERAS) {
+    await t.test(`Agent Skill servida por MCP (SEP-2640), era ${era.expected}`, async () => {
+      const client = await connect(backend, era.versionNegotiation);
+      const skillPath = path.join(__dirname, '..', 'skills', 'voice-agent-bridge', 'SKILL.md');
+      const bytes = fs.readFileSync(skillPath);
+      const uri = 'skill://voice-agent-bridge/SKILL.md';
+      const anyResult = z.object({}).loose();
+
+      const { skills } = await client.request({ method: 'skills/list', params: {} }, anyResult);
+      assert.equal(skills.length, 1);
+      assert.equal(skills[0].uri, uri);
+      assert.equal(skills[0].frontmatter.name, 'voice-agent-bridge');
+      assert.deepEqual(skills[0].resources, [{ uri, digest: `sha256:${crypto.createHash('sha256').update(bytes).digest('hex')}`, size: bytes.length }]);
+
+      const { skill } = await client.request({ method: 'skills/get', params: { uri } }, anyResult);
+      assert.deepEqual(skill, skills[0]);
+      await assert.rejects(client.request({ method: 'skills/get', params: { uri: 'skill://nope/SKILL.md' } }, anyResult), error => error.code === -32602);
+
+      const { contents } = await client.readResource({ uri });
+      assert.equal(contents[0].mimeType, 'text/markdown');
+      assert.equal(contents[0].text, bytes.toString('utf8'));
       await client.close();
     });
   }

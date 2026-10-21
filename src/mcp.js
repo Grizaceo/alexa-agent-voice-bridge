@@ -6,6 +6,7 @@ const { McpServer, createMcpHandler } = require('@modelcontextprotocol/server');
 const { toNodeHandler, originValidation } = require('@modelcontextprotocol/node');
 const { z } = require('zod');
 const agent = require('./agent');
+const { loadSkills, registerSkills, skillsCapabilities } = require('./skills');
 const { version } = require('../package.json');
 
 const MAX_WAIT_SECONDS = 20;
@@ -38,8 +39,10 @@ function taskResult(task) {
   return { status: task.status, task_id: task.id, answer: agent.stripMarkdown(task.answer) };
 }
 
-function buildServer(log) {
-  const server = new McpServer({ name: 'alexa-agent-voice-bridge', version }, { instructions: INSTRUCTIONS });
+function buildServer(log, skills) {
+  const server = new McpServer({ name: 'alexa-agent-voice-bridge', version }, { instructions: INSTRUCTIONS, capabilities: skillsCapabilities(skills) });
+  // La Agent Skill que enseña a usar estas herramientas viaja con el propio servidor (SEP-2640).
+  registerSkills(server, skills);
 
   server.registerTool('ask_agent', {
     title: 'Ask the personal agent',
@@ -118,7 +121,8 @@ function mountMcp(app, { token, allowedOrigins, log = () => {} }) {
   }
   const checkOrigin = originValidation(allowedOrigins);
   const onerror = error => log('mcp_error', { error: error.message });
-  const serve = toNodeHandler(createMcpHandler(() => buildServer(log), { onerror }), { onerror });
+  const skills = loadSkills();
+  const serve = toNodeHandler(createMcpHandler(() => buildServer(log, skills), { onerror }), { onerror });
   app.all('/mcp', (req, res, next) => { if (checkOrigin(req, res)) next(); }, bearerAuth(token), (req, res) => serve(req, res));
   return true;
 }
