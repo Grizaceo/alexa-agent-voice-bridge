@@ -11,6 +11,26 @@ Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5
 
 > Spanish documentation, including the original voice-only guide: [docs/es/README.md](docs/es/README.md).
 
+## Try it in one command (no Echo needed)
+
+```bash
+npm ci && npm run demo
+```
+
+In about 20 seconds this starts the real `src/server.js` with a **simulated agent** (no LLM; it is labeled as such and answers after 4 s, longer than the voice turn). It then drives it with synthetic Alexa requests (the same JSON the Alexa cloud sends) and the official MCP client:
+1. A slow question asked by voice is collected over MCP.
+2. A question asked over MCP survives a server restart.
+3. The Echo announces that answer on the next launch.
+
+`npm run demo -- --real-agent` does the same against the agent configured in `.env`.
+
+| Judging criterion | Where to look |
+|---|---|
+| Technical implementation | One task store, two surfaces ([`src/agent.js`](src/agent.js)). The MCP server serves 2026-07-28 and 2025-11-25 on one endpoint, plus the Skills extension and an MCP App ([`src/mcp.js`](src/mcp.js), [`src/skills.js`](src/skills.js)). `npm test` runs the real server in both protocol eras. |
+| Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice ignores the TV. |
+| Potential impact | Your *own* agent, by voice, in Spanish, hands-free, with your data on your machine. Useful for people who can't or don't want to type, such as older adults and busy hands. |
+| Quality of the idea | Alexa+ through open standards today: any MCP host plays Alexa+, and the server ships the Agent Skill that teaches it how to behave. |
+
 ```text
  "Alexa, mango"                                     any MCP client (Alexa+-style agent,
   Echo → Alexa cloud → custom skill                  Claude Code, MCP Inspector, …)
@@ -18,7 +38,7 @@ Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5
         ▼                                                  ▼
  ┌──────────────────────── src/server.js (one Node process) ────────────────────────┐
  │  /alexa  ask-sdk handlers (signature verified)      /mcp  src/mcp.js + skills.js │
- │  Voice ID filter (src/voice-id.js)                   tools · skill:// resources  │
+ │  Voice ID filter (src/voice-id.js)              tools · skill:// · ui:// MCP App │
  │                         └──────────┬──────────────┘                               │
  │                     src/agent.js: callAgent + task store (data/tasks.json)       │
  └────────────────────────────────────┼──────────────────────────────────────────────┘
@@ -35,9 +55,10 @@ Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5
 | [`src/mcp.js`](src/mcp.js) | MCP server built on the official TypeScript SDK v2: `createMcpHandler` + `toNodeHandler`, stateless. Checks Origin (403) and Bearer token (401). |
 | [`src/skills.js`](src/skills.js) | Serves `skills/` over MCP with the [Skills extension](https://modelcontextprotocol.io/extensions/skills/overview) (`io.modelcontextprotocol/skills`, SEP-2640): `skills/list`, `skills/get`, and `skill://` resources with SHA-256 manifests. |
 | [`skills/voice-agent-bridge/SKILL.md`](skills/voice-agent-bridge/SKILL.md) | The Agent Skill ([agentskills.io](https://agentskills.io/specification) format). It covers spoken-length answers, the async pattern, answers requested earlier by voice, es-US pitfalls, and the close word. |
+| [`src/ui/task-board.html`](src/ui/task-board.html) | MCP App (`io.modelcontextprotocol/ui`): an interactive board of the tasks from every surface, rendered by MCP Apps hosts next to `list_tasks`. |
 | [`src/voice-id.js`](src/voice-id.js) | Owner-only mode: uses Alexa Voice ID so the TV or a bystander can't talk to your agent. |
 | [`config/`](config) | Interaction model (es-US/es-MX/es-ES) and skill manifest. |
-| [`scripts/`](scripts) | `npm run skill` (create, model, endpoint, simulate via SMAPI) and `npm run nlu` (intent resolution against the live model). |
+| [`scripts/`](scripts) | `npm run demo` (the one-command demo above), `npm run skill` (create, model, endpoint, simulate via SMAPI) and `npm run nlu` (intent resolution against the live model). |
 | [`test/`](test) | `node:test` suites: task store, synthetic Alexa requests, MCP in both protocol eras, cross-surface flows, Voice ID, and the skill's frontmatter. |
 
 ## The MCP server
@@ -55,6 +76,14 @@ Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5
 All tools return `structuredContent` (with an `outputSchema`) and the same JSON as text. Answers are plain text with Markdown stripped, ready to be spoken. A task counts as delivered once any surface hands its answer over, so the Echo never repeats an answer you already got over MCP.
 
 The server also publishes `skill://voice-agent-bridge/SKILL.md` through the Skills extension, declared in both protocol eras. A host that supports the extension can discover and load the skill straight from the server it describes.
+
+**MCP App: a screen for a speaker-only Echo.** `list_tasks` links a `ui://voice-agent-bridge/task-board.html` resource (`text/html;profile=mcp-app`). Hosts that support [MCP Apps](https://modelcontextprotocol.io/extensions/apps/overview) render an interactive board, and hosts without UI support ignore the link and use the JSON.
+- The board shows every task with its origin (ECHO or MCP) and status, and refreshes itself while tasks are running.
+- From the board you can collect an answer (`get_agent_result`) or ask a new question (`ask_agent`), through the host's tool-call bridge.
+- It is plain HTML and JavaScript with no external resources, so it works under the default MCP Apps content security policy.
+- Verified in [MCPJam Inspector](https://github.com/MCPJam/inspector) 3.16.0 against this server and a real agent. The "ECHO" task below was asked by voice:
+
+![MCP App task board rendered in MCPJam: two tasks asked over MCP and one asked on the Echo, with the agent's answers](docs/img/task-board-mcp-app.png)
 
 **Connect a client:**
 
@@ -146,6 +175,8 @@ npm run skill -- simulate "abre mango" --new
 | The skill served over MCP passes Skills-extension conformance and digest checks | same Inspector command with `--method skills/list --verify` |
 | The skill is valid Agent Skills | `uvx --from 'git+https://github.com/agentskills/agentskills#subdirectory=skills-ref' skills-ref validate skills/voice-agent-bridge` |
 | Which protocol version each client negotiated | `grep '"path":"/mcp"' data/alexa-debug.log` (field `mcpProtocol`) |
+| Voice ↔ MCP handoff and persistence across a restart, without an Echo | `npm run demo` |
+| The MCP App renders and calls tools | `npx -y @mcpjam/inspector@3.16.0`, add the server with a bearer token, run `list_tasks` in the Playground |
 
 ## Configuration
 
