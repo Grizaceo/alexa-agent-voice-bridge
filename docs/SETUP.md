@@ -127,7 +127,8 @@ Browser-based clients send an `Origin` header. Add their hostnames to `MCP_ALLOW
 
 ## 10. Owner-only voice (Voice ID)
 
-1. In the Alexa app, set up your **Voice ID** and turn on **Personalize skills** for it.
+1. Create your **Voice ID** and turn on **Personalize skills** for it.
+   - If the Alexa app's Voice ID option just returns to the previous screen (it did on iPhone), say "**Alexa, aprende mi voz**" ("Alexa, learn my voice") to the Echo instead. It sends a notification to the app; tapping it starts the setup, which asks you to say four phrases out loud.
 2. Upload the manifest, which declares the `alexa::person_id:read` permission:
    ```bash
    npm run skill -- endpoint

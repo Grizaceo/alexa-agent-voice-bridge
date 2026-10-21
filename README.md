@@ -27,7 +27,7 @@ In about 20 seconds this starts the real `src/server.js` with a **simulated agen
 | Judging criterion | Where to look |
 |---|---|
 | Technical implementation | One task store, two surfaces ([`src/agent.js`](src/agent.js)). The MCP server serves 2026-07-28 and 2025-11-25 on one endpoint, plus the Skills extension and an MCP App ([`src/mcp.js`](src/mcp.js), [`src/skills.js`](src/skills.js)). `npm test` runs the real server in both protocol eras. |
-| Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice (beta) ignores the TV. |
+| Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice (Alexa Voice ID, verified on a real Echo) ignores the TV. |
 | Potential impact | Your *own* agent, by voice, in Spanish, hands-free, with your data on your machine. Useful for people who can't or don't want to type, such as older adults and busy hands. |
 | Quality of the idea | Built on the open standards the Alexa+ track names: any MCP host can act as an Alexa+-style assistant today, and the server ships the Agent Skill that teaches it how to behave. When Alexa+ accepts self-hosted MCP servers, the same server plugs in. |
 
@@ -126,16 +126,16 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 - **es-US quirks.** *Dime* is heard as the US coin, and "un"/"una" become "1". The backend reverts the latter.
 - **The ~8 s limit.** It applies regardless of progressive responses, hence the background tasks.
 
-### Owner-only mode (Voice ID, beta)
+### Owner-only mode (Voice ID)
 
-> **Beta.** Covered by synthetic tests ([`test/voice-id.test.js`](test/voice-id.test.js)); verification on a real es-US Echo is in progress.
+> **Verified on a real es-US Echo** with the skill in development stage (2026-10-21; redacted log in [`docs/evidence/voice-id-real-echo.jsonl`](docs/evidence/voice-id-real-echo.jsonl)). Every request from the enrolled owner carried `context.System.person`: launch, free speech and `repite`. A TV talking during an open session arrived without it, was ignored, and the session closed after its third phrase. The same cases are covered by synthetic tests ([`test/voice-id.test.js`](test/voice-id.test.js)).
 
 With `VOICE_ID_MODE=enforce`, only a speaker that Alexa recognizes by voice reaches the agent, `repite`, or the announcement of saved answers. After `VOICE_ID_MODE=enroll`, that speaker must be the enrolled owner. Recognition comes from `context.System.person.personId`, which requires the skill permission `alexa::person_id:read` and "Personalize skills" on your Voice ID.
 
-So, while the session's microphone is open, a TV or someone talking to you doesn't become a message for your agent. The close word is accepted from anyone. After `VOICE_ID_MAX_IGNORED` unrecognized phrases in a row, the session closes.
+So, while the session's microphone is open, a TV or someone talking to you doesn't become a message for your agent. The filter covers every handler, including `AMAZON.FallbackIntent`, where most TV speech lands. An ignored phrase gets "No reconocí tu voz. Si me hablabas a mí, repítelo." The close word is accepted from anyone. After `VOICE_ID_MAX_IGNORED` (default 3) unrecognized phrases in a row, the session closes, so a TV can't keep it open.
 
 Limits:
-- Voice ID classifies each request as a whole. It does not separate overlapping voices, so if the TV talks *while* you talk, the request may not be recognized as yours and you repeat it.
+- Voice ID classifies each request as a whole. It does not separate overlapping voices, so if the TV talks *while* you talk, the request may not be recognized as yours and you repeat it. On the real Echo, one of two owner phrases spoken over the TV was not recognized; repeating it more clearly worked.
 - It is only as good as Alexa's recognition in your locale.
 
 ## Built during the submission window

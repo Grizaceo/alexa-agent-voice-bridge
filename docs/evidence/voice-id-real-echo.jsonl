@@ -1,0 +1,22 @@
+{"ts":"2026-10-21T21:41:39.031Z","event":"launch","allowed":true}
+{"ts":"2026-10-21T21:41:39.032Z","event":"voice_id","mode":"off","kind":"launch","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T21:41:45.113Z","event":"voice_id","mode":"off","kind":"talk","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T21:41:45.113Z","event":"talk_intent_received","intentName":"FreeEstadoIntent","utterance":"estado del sistema"}
+{"ts":"2026-10-21T21:45:02.905Z","event":"launch","allowed":true}
+{"ts":"2026-10-21T21:45:02.905Z","event":"voice_owner_enrolled","person":"5521f038"}
+{"ts":"2026-10-21T21:45:02.905Z","event":"voice_id","mode":"enroll","kind":"launch","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T21:45:09.056Z","event":"voice_id","mode":"enroll","kind":"talk","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T21:45:09.056Z","event":"talk_intent_received","intentName":"FreeEstadoIntent","utterance":"estado del sistema"}
+{"ts":"2026-10-21T22:02:49.521Z","event":"launch","allowed":true}
+{"ts":"2026-10-21T22:02:49.521Z","event":"voice_id","mode":"enforce","kind":"launch","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T22:03:05.089Z","event":"fallback_intent","intentName":"AMAZON.FallbackIntent"}
+{"ts":"2026-10-21T22:03:05.089Z","event":"voice_id","mode":"enforce","kind":"fallback","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-21T22:03:13.908Z","event":"fallback_intent","intentName":"AMAZON.FallbackIntent"}
+{"ts":"2026-10-21T22:03:13.908Z","event":"voice_id","mode":"enforce","kind":"fallback","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-21T22:03:21.601Z","event":"fallback_intent","intentName":"AMAZON.FallbackIntent"}
+{"ts":"2026-10-21T22:03:21.601Z","event":"voice_id","mode":"enforce","kind":"fallback","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-21T22:03:31.489Z","event":"launch","allowed":true}
+{"ts":"2026-10-21T22:03:31.490Z","event":"voice_id","mode":"enforce","kind":"launch","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T22:03:37.008Z","event":"voice_id","mode":"enforce","kind":"talk","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-21T22:03:44.693Z","event":"voice_id","mode":"enforce","kind":"talk","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-21T22:03:44.693Z","event":"talk_intent_received","intentName":"FreeEstadoIntent","utterance":"estado del sistema"}

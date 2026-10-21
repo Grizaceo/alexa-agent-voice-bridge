@@ -12,14 +12,14 @@
 | F2 servidor MCP | ✅ | `src/mcp.js`, `test/mcp.test.js` (ambas eras), Inspector 2.11 |
 | F3 entre superficies | ✅ | `test/cross-surface.test.js`; NLU 32/32; producción en este repo (cruce real voz ↔ MCP) |
 | F4 Agent Skill | ✅ | `skills/voice-agent-bridge/SKILL.md` (skills-ref válido), también servida por MCP (SEP-2640, Inspector `--verify`); demo con Claude Code |
-| F4b Voice ID | 🟡 código y tests listos | Falta la puerta en el Echo real (ver "Pasos del usuario" abajo) |
+| F4b Voice ID | ✅ | Puerta pasada en el Echo real (es-US, development): `person` llega en cada request; `enroll` → `enforce`; la TV se ignora y cierra la sesión a la tercera. `docs/evidence/voice-id-real-echo.jsonl`, `test/voice-id.test.js`, friction 16 |
 | F5 PR a ask-cli | 🟡 listo en local | Publicar requiere permiso (`.hackathon/f5-pr.md`) |
 | F6 docs y Devpost | ✅ (con **[confirmar]**) | README/SETUP en inglés; `.hackathon/` (friction log, feedback, feature requests, devpost, video) |
 | Extra tras brainstorm y juez | ✅ | Pulido de voz (repetir lo entendido, recordar la pregunta, sonido, tarjeta), `npm run demo`, MCP App (tablero, verificado en MCPJam) |
 | F7 web que simula Alexa+ | ⛔ descartada | La reemplazan la MCP App y `npm run demo` |
 | F8 publicar | 🟡 semi-gate hecho | `.hackathon/f8-gate.md` |
 
-Producción (3107) corre el código de F4b en `VOICE_ID_MODE=off`. Los commits posteriores (pulido de voz, MCP App) necesitan un reinicio aprobado por el usuario.
+Producción (3107) corre el HEAD de la rama con `VOICE_ID_MODE=enforce` y el dueño registrado (21-oct, 19:02).
 
 ## Objetivo
 
