@@ -128,7 +128,7 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 
 ### Owner-only mode (Voice ID, beta)
 
-> **Beta.** Covered by synthetic tests; verification on a real es-US Echo is in progress.
+> **Beta.** Covered by synthetic tests ([`test/voice-id.test.js`](test/voice-id.test.js)); verification on a real es-US Echo is in progress.
 
 With `VOICE_ID_MODE=enforce`, only a speaker that Alexa recognizes by voice reaches the agent, `repite`, or the announcement of saved answers. After `VOICE_ID_MODE=enroll`, that speaker must be the enrolled owner. Recognition comes from `context.System.person.personId`, which requires the skill permission `alexa::person_id:read` and "Personalize skills" on your Voice ID.
 
@@ -137,7 +137,6 @@ So, while the session's microphone is open, a TV or someone talking to you doesn
 Limits:
 - Voice ID classifies each request as a whole. It does not separate overlapping voices, so if the TV talks *while* you talk, the request may not be recognized as yours and you repeat it.
 - It is only as good as Alexa's recognition in your locale.
-- Status: covered by synthetic tests ([`test/voice-id.test.js`](test/voice-id.test.js)). Verification on a real es-US Echo is in progress.
 
 ## Built during the submission window
 
