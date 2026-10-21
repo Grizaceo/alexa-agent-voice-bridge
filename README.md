@@ -5,7 +5,7 @@
 One personal agent ([Hermes Agent](https://github.com/NousResearch/hermes-agent) or any OpenAI-compatible `/v1/chat/completions` endpoint) and one durable task store, shared by two surfaces:
 
 1. **Voice:** an Amazon Echo, through a private Alexa custom skill.
-2. **MCP:** any MCP client, playing the role of Alexa+. The server is self-hosted, runs over Streamable HTTP, and speaks protocol **2026-07-28** and **2025-11-25** on the same endpoint. It also ships the **Agent Skill** that teaches a voice assistant how to use it, through the official MCP Skills extension.
+2. **MCP:** any MCP client acting as an Alexa+-style assistant (there is no way yet to connect a self-hosted MCP server to Alexa+ on an Echo; see [Known limitations](#known-limitations)). The server is self-hosted, runs over Streamable HTTP, and speaks protocol **2026-07-28** and **2025-11-25** on the same endpoint. It also ships the **Agent Skill** that teaches a voice assistant how to use it, through the official MCP Skills extension.
 
 Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5 seconds to several minutes. Here, a slow question asked by voice keeps running. Its answer is saved, and you can hear it on the Echo later or collect it from an MCP client, and the other way around. Tasks survive closed sessions, other surfaces, and server restarts.
 
@@ -20,16 +20,16 @@ npm ci && npm run demo
 In about 20 seconds this starts the real `src/server.js` with a **simulated agent** (no LLM; it is labeled as such and answers after 4 s, longer than the voice turn). It then drives it with synthetic Alexa requests (the same JSON the Alexa cloud sends) and the official MCP client:
 1. A slow question asked by voice is collected over MCP.
 2. A question asked over MCP survives a server restart.
-3. The Echo announces that answer on the next launch.
+3. The next time you open the skill ("Alexa, mango"), the Echo plays a chime and reads that answer first.
 
 `npm run demo -- --real-agent` does the same against the agent configured in `.env`.
 
 | Judging criterion | Where to look |
 |---|---|
 | Technical implementation | One task store, two surfaces ([`src/agent.js`](src/agent.js)). The MCP server serves 2026-07-28 and 2025-11-25 on one endpoint, plus the Skills extension and an MCP App ([`src/mcp.js`](src/mcp.js), [`src/skills.js`](src/skills.js)). `npm test` runs the real server in both protocol eras. |
-| Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice ignores the TV. |
+| Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice (beta) ignores the TV. |
 | Potential impact | Your *own* agent, by voice, in Spanish, hands-free, with your data on your machine. Useful for people who can't or don't want to type, such as older adults and busy hands. |
-| Quality of the idea | Alexa+ through open standards today: any MCP host plays Alexa+, and the server ships the Agent Skill that teaches it how to behave. |
+| Quality of the idea | Built on the open standards the Alexa+ track names: any MCP host can act as an Alexa+-style assistant today, and the server ships the Agent Skill that teaches it how to behave. When Alexa+ accepts self-hosted MCP servers, the same server plugs in. |
 
 ```text
  "Alexa, mango"                                     any MCP client (Alexa+-style agent,
@@ -126,7 +126,9 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 - **es-US quirks.** *Dime* is heard as the US coin, and "un"/"una" become "1". The backend reverts the latter.
 - **The ~8 s limit.** It applies regardless of progressive responses, hence the background tasks.
 
-### Owner-only mode (Voice ID)
+### Owner-only mode (Voice ID, beta)
+
+> **Beta.** Covered by synthetic tests; verification on a real es-US Echo is in progress.
 
 With `VOICE_ID_MODE=enforce`, only a speaker that Alexa recognizes by voice reaches the agent, `repite`, or the announcement of saved answers. After `VOICE_ID_MODE=enroll`, that speaker must be the enrolled owner. Recognition comes from `context.System.person.personId`, which requires the skill permission `alexa::person_id:read` and "Personalize skills" on your Voice ID.
 
