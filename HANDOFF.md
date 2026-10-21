@@ -46,11 +46,12 @@ Una tarea lenta pedida por voz se recoge después desde un cliente MCP, o al rev
 
 **Skill clásica:** `src/server.js` reemplaza su `pendingReplies` en memoria por `src/agent.js`. El comportamiento de voz no cambia, salvo que ahora sobrevive a reinicios y el TTL es de 24 h.
 
-**Servidor MCP:**
-- Ruta `POST/GET/DELETE /mcp` en el mismo proceso Express.
-- SDK oficial `@modelcontextprotocol/sdk` con **versión exacta fijada** y transporte **Streamable HTTP**.
-- Protocolo negociado **2025-11-25 o posterior**.
-- Exige `Authorization: Bearer ${MCP_TOKEN}`; sin él responde 401.
+**Servidor MCP** (cambio aprobado por el usuario el 2026-10-21 tras F0; ver `.hackathon/NOTES.md`):
+- Ruta `/mcp` en el mismo proceso Express. Es **stateless**: POST atiende todo, y GET y DELETE responden 405, como permiten ambas specs.
+- SDK oficial **v2**: `@modelcontextprotocol/server` (más `@modelcontextprotocol/node` para Express) con **versión exacta fijada** y transporte **Streamable HTTP**.
+- Protocolo negociado: **2026-07-28** con clientes que lo hablen y **2025-11-25** con los demás, en el mismo endpoint.
+- **Límite de 1,5 h** para tener los tests de F2 en verde con v2. Si no se cumple, se vuelve a `@modelcontextprotocol/sdk@1.32.1` (2025-11-25, con sesiones y POST/GET/DELETE).
+- Valida `Origin` (403 si viene y no está permitido, MUST de la spec) y exige `Authorization: Bearer ${MCP_TOKEN}` (sin él, 401).
 
 Herramientas (todas devuelven texto limpio, apto para voz, sin Markdown):
 
@@ -60,7 +61,7 @@ Herramientas (todas devuelven texto limpio, apto para voz, sin Markdown):
 | `get_agent_result` | `task_id: string`, `wait_seconds?: number` (por defecto 0, máximo 20) | `{status:"done"\|"pending"\|"failed"\|"expired", answer?}` |
 | `list_tasks` | `include_delivered?: boolean` | `[{task_id, question, status, origin, created_at}]` |
 
-Si la spec 2025-11-25 trae una primitiva nativa para tareas largas (Tasks) y el SDK la implementa, **agrégala además** de las herramientas de polling: los clientes MCP varían y el polling es el piso común.
+Tasks nativas: v2 no ejecuta las Tasks de 2025-11-25, así que aplica el Plan B y queda **solo el polling**. La extensión `io.modelcontextprotocol/tasks` de 2026-07-28 es un extra opcional si sobra tiempo (F7).
 
 **Agent Skill** en `skills/voice-agent-bridge/SKILL.md`, con el formato abierto de Agent Skills. Le enseña a un agente tipo Alexa+ a usar estas herramientas:
 - respuestas de 1–2 frases;
@@ -77,15 +78,45 @@ Si la spec 2025-11-25 trae una primitiva nativa para tareas largas (Tasks) y el 
 | F2 | Servidor MCP y autenticación | Tests con el cliente del SDK contra un servidor local: listar herramientas, `ask_agent` rápido y lento, `get_agent_result`, 401 sin token. Una sesión real con MCP Inspector (versión fijada) |
 | F3 | Flujo entre superficies | Test: tarea creada por voz y recogida por MCP, y al revés. Luego `npm run nlu` (32/32) y `npm run skill -- simulate` contra la skill real, ya con este repo como producción (ver LOCAL_NOTES) |
 | F4 | Agent Skill | Frontmatter YAML válido (parsearlo); un agente que la carga y usa el MCP en una demo |
+| F4b | Identificación por voz (ver la sección de abajo). Límite: 2 h | Tests sintéticos con y sin `context.System.person` y con otro `personId`, en cada modo. En el Echo: el dueño habla y llega al agente; durante la sesión, la TV o un tercero hablan y se ignoran (evidencia: `data/alexa-debug.log` e historial de voz de Alexa) |
 | F5 | Mini challenge Open Source: una **contribución adicional**. Propuesta: PR a `alexa/ask-cli` para que `util generate-lwa-tokens` cree `~/.ask/cli_config` si falta y no exija TTY para el `(Y/n)` | Tests del propio repo de ask-cli en verde. **Pedir permiso al usuario antes de hacer fork, push o abrir el PR** |
 | F6 | `README.md` en inglés (el actual pasa a `docs/es/`), con "what we built during the submission window"; `.hackathon/`: `product-feedback.md`, `friction-log.md` (formato oficial por entrada), `feature-requests.md`, descripción para Devpost y guion del video | Cada afirmación técnica del README se puede comprobar con un comando o un archivo del repo |
 | F7 | *(Opcional)* Mini web que simule Alexa+: push-to-talk y un agente que use este MCP | Solo si F0–F6 están completas el jueves |
 | F8 | Publicar: repo GitHub público, LICENSE visible en "About"; mover o borrar este HANDOFF | **Pedir permiso al usuario antes de crear el repo remoto o hacer push** |
 
+## Identificación por voz (F4b, pedida por el usuario el 2026-10-21)
+
+**Objetivo:** con la conversación abierta, el puente solo atiende al dueño. Si suena la TV o alguien le habla al usuario en medio de un comando, eso no llega al agente.
+
+**Base (doc de Amazon, [Add Personalization to Your Alexa Skill](https://developer.amazon.com/en-US/docs/alexa/custom-skills/add-personalization-to-your-skill.html), leída el 2026-10-21):**
+- Con el permiso `alexa::person_id:read` en el manifiesto, cada request de un hablante reconocido trae `context.System.person.personId` (y `authenticationConfidenceLevel`).
+- Si Alexa no reconoce la voz, o el hablante no activó "Personalizar skills" en su Voice ID, el request llega **sin** `person`.
+- El reconocimiento se hace en cada request, no solo al abrir la skill.
+
+**Diseño:**
+- `VOICE_ID_MODE=off|enroll|enforce`, por defecto `off`. En `enroll`, el primer `personId` que llega queda registrado como dueño en `data/`.
+- En `enforce`, un request sin `person` o de otra persona no crea tarea ni entra al historial. La respuesta es breve y deja la sesión escuchando (su forma exacta, voz o silencio, se decide probando en el Echo). Después de N ignorados seguidos, se cierra la sesión.
+- La palabra de cierre ("maracuyá") se acepta de cualquiera.
+- El log registra si el hablante fue reconocido, sin escribir el `personId` completo.
+
+**Pasos del usuario:**
+1. En la app Alexa, crear su Voice ID y activar "Personalizar skills".
+2. Correr con `!` el comando que sube el manifiesto con el permiso (`npm run skill -- endpoint`); el modo automático lo bloquea.
+3. Aceptar el permiso de la skill en la app.
+
+**Primer paso (puerta):** comprobar en el Echo real que llega `person`. La doc no confirma que funcione en **es-US** ni con la skill en etapa development. Si no llega, la fase se cae y queda como entrada del friction log y como feature request.
+
+**Límites (van al README):**
+- Voice ID clasifica cada request completo; no separa voces superpuestas. Si la TV u otra persona hablan **al mismo tiempo** que el dueño, el texto llega mezclado o Alexa no reconoce al dueño. Ese caso se ignora y el dueño repite.
+- Fuera de una sesión abierta, la TV solo activa Alexa si dice la palabra de activación; el filtro actúa en la ventana de micrófono abierto de la sesión.
+- Con mucho ruido, Alexa puede no reconocer al dueño. En `enforce`, esa frase se ignora y la respuesta tiene que invitar a repetir.
+
 ## Plan B
 
 - **Si el SDK no negocia 2025-11-25:** usar el último release que sí lo haga; si ninguno, implementar el transporte Streamable HTTP según la spec y documentarlo.
 - **Si Tasks no existe o el SDK no la soporta:** quedarse solo con el polling (ya es el contrato).
+- **Si v2 no pasa los tests de F2 en 1,5 h:** volver a `@modelcontextprotocol/sdk@1.32.1`.
+- **Si Voice ID no llega a la skill (es-US/development) o F4b supera 2 h:** se cae F4b; queda como friction log, feature request y trabajo futuro.
 - **Si falta tiempo:** se cae F7. En F5, en vez del PR, publicar `scripts/nlu-check.js` como repo independiente (`alexa-nlu-check`, MIT, con tests).
 
 ## Material para el friction log (incidentes reales, 2026-10-21)
