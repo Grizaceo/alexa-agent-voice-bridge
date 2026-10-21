@@ -142,7 +142,7 @@ Limits:
 
 The voice bridge began as a private prototype in May–June 2026 (Echo → skill → backend → agent, end to end). Work done during the submission window (from 2026-08-31):
 
-- **2026-10-21, voice rework**, imported in the first commit of this repo ([`eab840e`](../../commit/eab840e)): free-speech intents, thinking mode with `repite`, the close word, ASK CLI scripts (`npm run skill`), and `npm run nlu`.
+- **2026-10-21, voice rework**, imported in the first commit of this repo ([`d7d8393`](../../commit/d7d8393)): free-speech intents, thinking mode with `repite`, the close word, ASK CLI scripts (`npm run skill`), and `npm run nlu`.
 - **This repository's history** (`git log`):
   - persistent shared task store (F1);
   - MCP server on SDK v2 in both protocol eras (F2);
