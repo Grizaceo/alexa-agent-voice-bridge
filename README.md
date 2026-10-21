@@ -118,7 +118,7 @@ Load it from the folder (for example `.claude/skills/voice-agent-bridge/`) or ov
 | *(the agent takes more than 5 s)* | "Entendí: *<what it heard>*. Me va a tomar un momento. Di repite…": you hear what Alexa transcribed, and the task keeps running. |
 | "repite" | Waits up to 5 s more and reads the answer. On the second miss it ends the session, and the answer stays saved. |
 | "maracuyá" | Closes. Anything in progress is saved. |
-| *(every answer)* | Also appears as a card in the Alexa app (and on an Echo Show screen), so long answers can be read in full. |
+| *(every answer)* | Spoken without Markdown, and a bare link is spoken as just the site ("meteochile.gob.cl"), or skipped if the answer already names it. The full answer, links included, also appears as a card in the Alexa app (and on an Echo Show screen). |
 
 Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/es/README.md](docs/es/README.md#por-qué-está-hecho-así)):
 - **Invocation name.** It must be a word the speech recognizer transcribes exactly. "davi" came out as "david", so the invocation is "mango".

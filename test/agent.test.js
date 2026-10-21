@@ -4,7 +4,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { createTaskStore, INTERRUPTED_REASON } = require('../src/agent');
+const { createTaskStore, INTERRUPTED_REASON, forSpeech } = require('../src/agent');
 
 function tempFile() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-tasks-'));
@@ -137,4 +137,18 @@ test('getTask devuelve copias: modificar el resultado no altera el almacén', as
   task.answer = 'otra';
   assert.equal(store.getTask(task.id).status, 'done');
   assert.equal(store.getTask(task.id).answer, 'respuesta a z');
+});
+
+test('forSpeech: una URL suelta se dice como el sitio, o se omite si el sitio ya se nombró', () => {
+  // La respuesta real del Echo (21-oct): el Echo deletreaba la URL entera.
+  assert.equal(
+    forSpeech('Fuente: AccuWeather, consultado hoy 21 de octubre.\nhttps://www.accuweather.com/es/cl/santiago/60449/daily-weather-forecast/60449'),
+    'Fuente: AccuWeather, consultado hoy 21 de octubre.',
+  );
+  assert.equal(forSpeech('Más detalles en https://meteochile.gob.cl/pronostico.'), 'Más detalles en meteochile.gob.cl.');
+  assert.equal(forSpeech('Según la BBC (https://www.bbc.co.uk/news/123), sube.'), 'Según la BBC, sube.');
+  assert.equal(forSpeech('Ver **[el informe](https://x.org/a)** o <https://www.example.com/b>.'), 'Ver el informe o example.com.');
+  assert.equal(forSpeech('Lee esto: www.wikipedia.org/wiki/Lima, y listo'), 'Lee esto: wikipedia.org, y listo');
+  // Sin URL, el texto queda igual que con stripMarkdown.
+  assert.equal(forSpeech('Sin enlaces, 3 : 2 y ¿qué tal ?'), 'Sin enlaces, 3 : 2 y ¿qué tal ?');
 });

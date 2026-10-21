@@ -38,6 +38,13 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
     assert.equal(readTasks(dir).length, 1);
   });
 
+  await t.test('una URL suelta no se deletrea por voz; la tarjeta la conserva', async () => {
+    const send = session(backend);
+    const reply = await send(intent('FreeQueIntent', { query: 'dice https://www.accuweather.com/es/cl' }));
+    assert.equal(reply.speech, 'Respuesta: qué dice accuweather.com');
+    assert.equal(reply.card.content, 'Respuesta: qué dice https://www.accuweather.com/es/cl');
+  });
+
   await t.test('pregunta lenta: modo pensando, "repite" espera y luego lee la respuesta', async () => {
     const send = session(backend);
     const thinking = await send(intent('FreeBuscaIntent', { query: 'algo lento' }));

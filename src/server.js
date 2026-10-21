@@ -6,7 +6,7 @@ const Alexa = require('ask-sdk-core');
 const { ExpressAdapter } = require('ask-sdk-express-adapter');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 const agent = require('./agent');
-const { stripMarkdown } = agent;
+const { stripMarkdown, forSpeech } = agent;
 const { mountMcp } = require('./mcp');
 const { createVoiceId } = require('./voice-id');
 
@@ -203,7 +203,7 @@ function deliverTask(handlerInput, task, { atLaunch = false } = {}) {
     ? `Tengo la respuesta a lo que me pediste${elsewhere}: ${shortQuestion(task.question)} `
     : (elsewhere ? `Lo que me pediste${elsewhere}: ${shortQuestion(task.question)} ` : '');
   return withAnswerCard(handlerInput.responseBuilder, task.question, task.answer)
-    .speak(ssml(`${intro}${stripMarkdown(task.answer)}`, { sound: READY_SOUND }))
+    .speak(ssml(`${intro}${forSpeech(task.answer)}`, { sound: READY_SOUND }))
     .reprompt(ssml('¿Algo más?'))
     .withShouldEndSession(false)
     .getResponse();
@@ -356,7 +356,7 @@ const TalkToDaviIntentHandler = {
     });
 
     return withAnswerCard(handlerInput.responseBuilder, utterance, result.text)
-      .speak(ssml(stripMarkdown(result.text)))
+      .speak(ssml(forSpeech(result.text)))
       .reprompt(ssml('Si quieres, puedes seguir hablando conmigo.'))
       .withShouldEndSession(false)
       .getResponse();
@@ -418,7 +418,7 @@ const RepeatIntentHandler = {
     const lastReply = sessionAttrs.lastReply || 'No tengo nada que repetir todavía.';
     logDebug('repeat_intent', { pending: false, lastReplyPreview: String(lastReply).slice(0, 160) });
     return handlerInput.responseBuilder
-      .speak(ssml(stripMarkdown(lastReply)))
+      .speak(ssml(forSpeech(lastReply)))
       .reprompt(ssml('¿Algo más?'))
       .withShouldEndSession(false)
       .getResponse();

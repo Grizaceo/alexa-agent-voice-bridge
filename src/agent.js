@@ -104,6 +104,28 @@ function stripMarkdown(text) {
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
 }
 
+// Lo que el Echo habla: una URL suelta se deletrearía entera. Se dice solo el sitio ("meteochile.gob.cl"),
+// o nada si su nombre ya está en el texto ("Fuente: AccuWeather"). La tarjeta y el MCP conservan la URL.
+const BARE_URL = /([ \t]*)<?\b((?:https?:\/\/|www\.)[^\s<>()[\]]+)>?/gi;
+function forSpeech(text) {
+  const plain = stripMarkdown(text);
+  const rest = plain.replace(BARE_URL, ' ').toLowerCase();
+  return plain
+    .replace(BARE_URL, (match, space, url) => {
+      const trailing = url.match(/[.,;:!?]+$/)?.[0] || '';
+      const bare = url.slice(0, url.length - trailing.length);
+      let host = '';
+      try {
+        host = new URL(/^https?:/i.test(bare) ? bare : `http://${bare}`).hostname.replace(/^www\./, '');
+      } catch {}
+      const name = host.split('.').reduce((a, b) => (b.length > a.length ? b : a), '');
+      return host && !new RegExp(`\\b${name}\\b`).test(rest) ? `${space}${host}${trailing}` : trailing;
+    })
+    .replace(/[ \t]*\(\s*\)/g, '')
+    .replace(/^[ \t.,;:]+$/gm, '')
+    .trim();
+}
+
 // Tarea: { id, question, status: pending|done|failed, answer, createdAt, finishedAt, deliveredAt, origin: voice|mcp }.
 // Se guarda entera en `file` (tmp + rename) en cada cambio. Las fechas son ISO 8601.
 // En una tarea failed, `answer` lleva el motivo (lo que se diría por voz).
@@ -262,6 +284,7 @@ function tasks() {
 module.exports = {
   callAgent,
   stripMarkdown,
+  forSpeech,
   createTaskStore,
   initTasks,
   startTask: (question, origin, options) => tasks().startTask(question, origin, options),
