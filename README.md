@@ -150,6 +150,7 @@ The voice bridge began as a private prototype in May–June 2026 (Echo → skill
   - the Agent Skill, served over MCP (F4);
   - Voice ID owner-only mode (F4b), verified on a real Echo;
   - all the tests in `test/` except `nlu-cases.json`.
+- **Open source contribution:** [alexa/ask-cli#513](https://github.com/alexa/ask-cli/pull/513) makes `ask util generate-lwa-tokens` work without `~/.ask/cli_config`, which blocked setting up the skill from an AI coding agent (unit suite 1639 → 1640 passing).
 - **The phase-by-phase work log** (in Spanish), with the verification required for each phase: [`docs/hackathon-log.md`](docs/hackathon-log.md).
 
 ## Setup
