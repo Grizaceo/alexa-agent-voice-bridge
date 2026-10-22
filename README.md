@@ -193,7 +193,7 @@ Everything lives in `.env` (see [`.env.example`](.env.example)):
 | `MCP_TOKEN`, `MCP_ALLOWED_ORIGINS` | MCP bearer token (empty = MCP off) and allowed Origin hostnames. |
 | `TASKS_FILE`, `TASK_TTL_MS` | Where tasks persist and how long they live. |
 | `VOICE_GATEWAY_TIMEOUT_MS`, `HERMES_MAX_WAIT_MS` | Wait inside a voice turn (5 s) and maximum wait for the agent (10 min). |
-| `VOICE_ID_MODE`, `VOICE_OWNER_PERSON_ID`, `VOICE_ID_MAX_IGNORED`, `VOICE_ID_SILENT` | Owner-only voice mode. |
+| `VOICE_ID_MODE`, `VOICE_ID_MODE_EN`, `VOICE_OWNER_PERSON_ID`, `VOICE_ID_MAX_IGNORED`, `VOICE_ID_SILENT` | Owner-only voice mode; `VOICE_ID_MODE_EN` optionally sets a different mode for English requests. |
 | `ASSISTANT_NAME`, `ALEXA_RETURN_PHRASE`, `ALEXA_RETURN_PHRASE_EN`, `ALEXA_ENDPOINT`, `ALLOW_USER_IDS` | Spoken name, reopen phrase in Spanish and English ("Alexa, mango", "Alexa, open mango"), public skill URL, allowed Alexa users. |
 | `READY_SOUND` | Alexa sound-library chime played before an answer that waited (empty = none). |
 | `PORT`, `HOST` | Where the backend listens (`127.0.0.1:3107` by default). |

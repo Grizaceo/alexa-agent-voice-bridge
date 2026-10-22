@@ -105,3 +105,19 @@ test('Voice ID in English: another voice is ignored with an English reply', asyn
   assert.equal(third.ended, true);
   assert.ok(!fs.existsSync(path.join(dir, 'tasks.json')) || readTasks(dir).length === 0, 'other voices create no tasks');
 });
+
+test('VOICE_ID_MODE_EN=off: English requests pass without Voice ID, Spanish ones are still filtered', async t => {
+  const gateway = await startGateway();
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'voice-bridge-en-modeen-'));
+  const backend = await startBackend(dir, gateway.address().port, { VOICE_ID_MODE: 'enforce', VOICE_ID_MODE_EN: 'off' });
+  t.after(async () => {
+    await backend.stop();
+    gateway.close();
+  });
+  const health = await (await fetch(`${backend.base}/health`)).json();
+  assert.deepEqual(health.voiceId, { mode: 'enforce', modeEn: 'off', ownerEnrolled: false });
+  assert.equal((await session(backend)(intent('FreeWhatIntent', { query: 'is the weather like' }))).speech, 'Respuesta: what is the weather like');
+  assert.equal((await alexaSession(backend)(intent('FreeQueIntent', { query: 'tiempo hace' }))).speech, 'No reconocí tu voz. Si me hablabas a mí, repítelo.');
+  const checks = fs.readFileSync(path.join(dir, 'debug.log'), 'utf8').trim().split('\n').map(l => JSON.parse(l)).filter(e => e.event === 'voice_id');
+  assert.deepEqual(checks.map(e => [e.locale, e.mode, e.allowed]), [['en-US', 'off', true], ['es-US', 'enforce', false]]);
+});

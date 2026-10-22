@@ -48,6 +48,8 @@ const stillWorkingCounts = new Map();
 // hablante reconocido como dueño) o enforce (solo el dueño llega al agente). Ver src/voice-id.js.
 const voiceId = createVoiceId({
   mode: process.env.VOICE_ID_MODE || 'off',
+  // Opcional: otro modo para inglés (p. ej. off si Alexa no reconoce tu voz en inglés).
+  modeEn: process.env.VOICE_ID_MODE_EN || process.env.VOICE_ID_MODE || 'off',
   ownerFile: path.resolve(process.env.VOICE_OWNER_FILE || path.join(__dirname, '..', 'data', 'voice-owner.json')),
   ownerPersonId: process.env.VOICE_OWNER_PERSON_ID || '',
   log: logDebug,
