@@ -129,9 +129,23 @@ function shortQuestion(text, maxWords = 14) {
 function withAnswerCard(builder, question, answer) {
   return builder.withSimpleCard(`${ASSISTANT_NAME}: ${shortQuestion(question, 10).replace(/\.$/, '')}`, stripMarkdown(answer).slice(0, 6000));
 }
-// Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo").
+// Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo", "1 idea").
+// El artículo sale de la palabra siguiente: "una" si termina en -a (salvo "día", "problema"…),
+// en -ción, -sión, -dad, -tad, -tud o -umbre, o si es una femenina común ("vez", "noche"…).
+// Ante "de", "y"… el 1 es un número ("el 1 de noviembre") y se deja.
+const MASCULINE_A_WORDS = new Set(['dia', 'mediodia', 'mapa', 'problema', 'tema', 'sistema', 'programa', 'idioma', 'clima', 'planeta', 'poema', 'esquema', 'dilema', 'drama', 'diagrama', 'pijama', 'sofa']);
+const FEMININE_WORDS = new Set(['vez', 'noche', 'tarde', 'clase', 'calle', 'parte', 'frase', 'llave', 'nube', 'fuente', 'serie', 'imagen', 'red', 'flor', 'ley', 'foto', 'mano', 'moto']);
+const NUMBER_FOLLOWERS = new Set(['de', 'del', 'y', 'o', 'a', 'al', 'en', 'por', 'para', 'con', 'mas', 'menos']);
+function spokenOne(nextWord) {
+  const word = nextWord.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+  if (NUMBER_FOLLOWERS.has(word)) return '1';
+  const feminine = FEMININE_WORDS.has(word)
+    || (word.endsWith('a') && !MASCULINE_A_WORDS.has(word))
+    || /(cion|sion|dad|tad|tud|umbre)$/.test(word);
+  return feminine ? 'una' : 'un';
+}
 function normalizeSpokenQuery(text) {
-  return String(text || '').replace(/(^|\s)1(?=\s+[a-záéíóúñ])/gi, '$1un');
+  return String(text || '').replace(/(^|\s)1(?=\s+([a-záéíóúüñ]+))/gi, (_, before, nextWord) => `${before}${spokenOne(nextWord)}`);
 }
 function getFastSystemStatusReply() {
   const mem = os.totalmem() > 0 ? Math.round((os.freemem() / os.totalmem()) * 100) : null;

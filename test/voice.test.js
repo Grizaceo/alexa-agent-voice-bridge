@@ -45,6 +45,20 @@ test('voz: respuestas rápidas, modo pensando, repite, cierre y reinicios', asyn
     assert.equal(reply.card.content, 'Respuesta: qué dice https://www.accuweather.com/es/cl');
   });
 
+  await t.test('el "1" que Alexa pone en lugar de "un"/"una" vuelve con el artículo de la palabra siguiente', async () => {
+    const send = session(backend);
+    const cases = [
+      ['FreeDameIntent', '1 idea para la cena', 'dame una idea para la cena'],
+      ['FreeMandaIntent', '1 correo a Ana', 'manda un correo a Ana'],
+      ['FreeQueIntent', 'hago en 1 día libre', 'qué hago en un día libre'],
+      ['FreeDameIntent', '1 canción y 1 vez más 1 chiste', 'dame una canción y una vez más un chiste'],
+      ['FreeQueIntent', 'pasa el 1 de noviembre', 'qué pasa el 1 de noviembre'],
+    ];
+    for (const [name, query, question] of cases) {
+      assert.equal((await send(intent(name, { query }))).speech, `Respuesta: ${question}`);
+    }
+  });
+
   await t.test('pregunta lenta: modo pensando, "repite" espera y luego lee la respuesta', async () => {
     const send = session(backend);
     const thinking = await send(intent('FreeBuscaIntent', { query: 'algo lento' }));
