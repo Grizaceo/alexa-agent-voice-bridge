@@ -27,6 +27,8 @@ Una Alexa Custom Skill privada para hablar desde un Echo con **tu** agente, sea 
 | "maracuyá" | Cierra la conversación. Si hay algo en curso, lo guarda. |
 | "Alexa, pídele a mango estado del sistema" | Hace la pregunta en una sola frase, sin abrir la conversación. |
 
+**En inglés.** La skill también habla inglés (en-US), con su propio modelo (`config/interaction-model.en-US.json`). Con el Echo en inglés o en modo bilingüe inglés/español, cada respuesta sale en el idioma en que le hablaste: "Alexa, open mango", "what…", "search…", "repeat" y, para cerrar, "passion fruit".
+
 ## Por qué está hecho así
 
 Esto es lo que funcionó después de varios intentos que no llegaban al Echo:

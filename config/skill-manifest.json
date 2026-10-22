@@ -33,6 +33,13 @@
           "description": "Puente privado entre Alexa y un agente propio (Hermes Agent u otro endpoint compatible con OpenAI).",
           "examplePhrases": ["Alexa, abre mango", "qué hora es en Santiago", "busca el clima de mañana"],
           "keywords": []
+        },
+        "en-US": {
+          "name": "REEMPLAZADO-POR-ASSISTANT_NAME",
+          "summary": "Talk to your own agent from Alexa.",
+          "description": "Private bridge between Alexa and your own agent (Hermes Agent or any OpenAI-compatible endpoint).",
+          "examplePhrases": ["Alexa, open mango", "what time is it in Tokyo", "search for tomorrow's weather"],
+          "keywords": []
         }
       },
       "category": "KNOWLEDGE_AND_TRIVIA",
@@ -40,7 +47,7 @@
       "isAvailableWorldwide": true
     },
     "privacyAndCompliance": {
-      "locales": { "es-US": {}, "es-MX": {}, "es-ES": {} }
+      "locales": { "es-US": {}, "es-MX": {}, "es-ES": {}, "en-US": {} }
     }
   }
 }

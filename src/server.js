@@ -9,6 +9,7 @@ const agent = require('./agent');
 const { stripMarkdown, forSpeech } = agent;
 const { mountMcp } = require('./mcp');
 const { createVoiceId } = require('./voice-id');
+const { TEXTS, langOf } = require('./i18n');
 
 const PORT = Number(process.env.PORT || 3107);
 // Solo localhost: Tailscale Funnel llega por 127.0.0.1 y la spec MCP pide no exponer servidores locales.
@@ -34,8 +35,11 @@ const ALEXA_SKIP_VERIFICATION = String(process.env.ALEXA_SKIP_VERIFICATION || 'f
 // Alexa corta a los ~8 s (incluido el relay de Tailscale). Pasado este plazo se responde
 // "lo estoy pensando" y la tarea sigue corriendo en src/agent.js (hasta HERMES_MAX_WAIT_MS).
 const VOICE_GATEWAY_TIMEOUT_MS = Number(process.env.VOICE_GATEWAY_TIMEOUT_MS || 5000);
-// Frase con la que el usuario vuelve a abrir la skill (rutina de la app Alexa).
-const RETURN_PHRASE = process.env.ALEXA_RETURN_PHRASE || 'Alexa, mango';
+// Frase con la que el usuario vuelve a abrir la skill (rutina de la app Alexa), por idioma.
+const RETURN_PHRASES = {
+  es: process.env.ALEXA_RETURN_PHRASE || 'Alexa, mango',
+  en: process.env.ALEXA_RETURN_PHRASE_EN || 'Alexa, open mango',
+};
 // Sonido de la biblioteca de Alexa antes de leer una respuesta que esperó. READY_SOUND= (vacío) lo apaga.
 const READY_SOUND = process.env.READY_SOUND ?? 'soundbank://soundlibrary/alarms/beeps_and_bloops/bell_02';
 // taskId -> cuántas veces "repite" esperó sin respuesta. Solo afecta a cuándo se corta la conversación.
@@ -51,18 +55,25 @@ const voiceId = createVoiceId({
 // Frases seguidas de otras voces tras las que se cierra la sesión, y si se ignoran en silencio.
 const VOICE_ID_MAX_IGNORED = Number(process.env.VOICE_ID_MAX_IGNORED || 3);
 const VOICE_ID_SILENT = String(process.env.VOICE_ID_SILENT || 'false').toLowerCase() === 'true';
-// Free*Intent capturan habla libre ("qué {query}", "busca {query}"). Alexa no incluye
+// Free*Intent capturan habla libre ("qué {query}", "what {query}"). Alexa no incluye
 // la palabra inicial en el slot, así que se reconstruye desde la primera muestra del modelo.
-const INTERACTION_MODEL_INTENTS = loadInteractionModelIntents();
-const FREE_INTENT_LEADS = Object.fromEntries(INTERACTION_MODEL_INTENTS
+// Un modelo por idioma: config/interaction-model.json (es-*) y config/interaction-model.en-US.json.
+const INTERACTION_MODEL_INTENTS = {
+  es: loadInteractionModelIntents('interaction-model.json'),
+  en: loadInteractionModelIntents('interaction-model.en-US.json'),
+};
+const FREE_INTENT_LEADS = Object.fromEntries(Object.values(INTERACTION_MODEL_INTENTS).flat()
   .filter(intent => /^Free[A-Za-z]+Intent$/.test(intent.name) && intent.samples?.length)
   .map(intent => [intent.name, intent.samples[0].replace('{query}', '').trim()]));
-// Palabra de cierre = primera muestra de AMAZON.StopIntent en el modelo ("maracuyá").
-const CLOSE_WORD = INTERACTION_MODEL_INTENTS.find(intent => intent.name === 'AMAZON.StopIntent')?.samples?.[0] || 'adiós';
+// Palabra de cierre = primera muestra de AMAZON.StopIntent en cada modelo ("maracuyá", "passion fruit").
+const CLOSE_WORDS = {
+  es: INTERACTION_MODEL_INTENTS.es.find(intent => intent.name === 'AMAZON.StopIntent')?.samples?.[0] || 'adiós',
+  en: INTERACTION_MODEL_INTENTS.en.find(intent => intent.name === 'AMAZON.StopIntent')?.samples?.[0] || 'stop',
+};
 
-function loadInteractionModelIntents() {
+function loadInteractionModelIntents(file) {
   try {
-    const model = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', 'interaction-model.json'), 'utf8'));
+    const model = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'config', file), 'utf8'));
     return model?.interactionModel?.languageModel?.intents || [];
   } catch {
     return [];
@@ -87,6 +98,11 @@ function logDebug(event, payload = {}) {
     const line = JSON.stringify({ ts: new Date().toISOString(), event, ...payload });
     fs.appendFileSync(DEBUG_LOG_FILE, line + '\n');
   } catch {}
+}
+// Textos, frase de regreso y palabra de cierre del idioma en que se habló en esta request.
+function voiceOf(handlerInput) {
+  const lang = langOf(handlerInput.requestEnvelope?.request?.locale);
+  return { lang, t: TEXTS[lang], returnPhrase: RETURN_PHRASES[lang], closeWord: CLOSE_WORDS[lang] };
 }
 function getAlexaUserId(handlerInput) {
   return handlerInput.requestEnvelope?.context?.System?.user?.userId || handlerInput.requestEnvelope?.session?.user?.userId || 'unknown';
@@ -129,7 +145,7 @@ function shortQuestion(text, maxWords = 14) {
 function withAnswerCard(builder, question, answer) {
   return builder.withSimpleCard(`${ASSISTANT_NAME}: ${shortQuestion(question, 10).replace(/\.$/, '')}`, stripMarkdown(answer).slice(0, 6000));
 }
-// Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo", "1 idea").
+// Solo en español: Alexa normaliza "un"/"una" a "1" dentro de AMAZON.SearchQuery ("1 correo", "1 idea").
 // El artículo sale de la palabra siguiente: "una" si termina en -a (salvo "día", "problema"…),
 // en -ción, -sión, -dad, -tad, -tud o -umbre, o si es una femenina común ("vez", "noche"…).
 // Ante "de", "y"… el 1 es un número ("el 1 de noviembre") y se deja.
@@ -147,20 +163,15 @@ function spokenOne(nextWord) {
 function normalizeSpokenQuery(text) {
   return String(text || '').replace(/(^|\s)1(?=\s+([a-záéíóúüñ]+))/gi, (_, before, nextWord) => `${before}${spokenOne(nextWord)}`);
 }
-function getFastSystemStatusReply() {
-  const mem = os.totalmem() > 0 ? Math.round((os.freemem() / os.totalmem()) * 100) : null;
-  const load = Array.isArray(os.loadavg()) ? os.loadavg()[0] : 0;
-  const uptimeMin = Math.round(process.uptime() / 60);
-  const memText = mem == null ? 'memoria no disponible' : `memoria libre aproximada ${mem} por ciento`;
-  const loadText = Number.isFinite(load) ? `carga ${load.toFixed(2)}` : 'carga no disponible';
-  return `Estado rápido: backend Alexa activo, gateway configurado, modelo ${HERMES_API_MODEL}, ${memText}, ${loadText}, uptime del backend ${uptimeMin} minutos.`;
+function getFastSystemStatusReply(t) {
+  const memFree = os.totalmem() > 0 ? Math.round((os.freemem() / os.totalmem()) * 100) : null;
+  const load = Array.isArray(os.loadavg()) && Number.isFinite(os.loadavg()[0]) ? os.loadavg()[0].toFixed(2) : null;
+  return t.status({ model: HERMES_API_MODEL, memFree, load, uptimeMin: Math.round(process.uptime() / 60) });
 }
-function resolveFastPath(utterance) {
+function resolveFastPath(utterance, t) {
   const text = String(utterance || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
   if (!text) return null;
-  if (text.includes('estado del sistema') || text === 'estado sistema' || text === 'como esta el sistema' || text === 'como esta el estado del sistema') {
-    return getFastSystemStatusReply();
-  }
+  if (t.isStatusQuestion(text)) return getFastSystemStatusReply(t);
   return null;
 }
 // true si quien habla puede usar el agente (siempre, salvo VOICE_ID_MODE=enforce); reinicia la cuenta de ignoradas.
@@ -172,19 +183,20 @@ function speakerAllowed(handlerInput, kind) {
 }
 // Una voz que no es la del dueño: no crea tarea ni entra al historial, y la sesión sigue escuchando.
 function ignoreSpeaker(handlerInput) {
+  const { t } = voiceOf(handlerInput);
   const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
   const ignoredCount = (sessionAttrs.ignoredCount || 0) + 1;
   handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, ignoredCount });
   if (ignoredCount >= VOICE_ID_MAX_IGNORED) {
     return handlerInput.responseBuilder
-      .speak(ssml('No reconozco esta voz. Hasta luego.'))
+      .speak(ssml(t.voiceUnknownClose))
       .withShouldEndSession(true)
       .getResponse();
   }
   if (VOICE_ID_SILENT) return handlerInput.responseBuilder.withShouldEndSession(false).getResponse();
   return handlerInput.responseBuilder
-    .speak(ssml('No reconocí tu voz. Si me hablabas a mí, repítelo.'))
-    .reprompt(ssml('Te escucho.'))
+    .speak(ssml(t.voiceUnknown))
+    .reprompt(ssml(t.listening))
     .withShouldEndSession(false)
     .getResponse();
 }
@@ -212,13 +224,14 @@ function deliverTask(handlerInput, task, { atLaunch = false } = {}) {
     pendingTaskId: null,
   });
   logDebug('pending_reply_delivered', { taskId: task.id, origin: task.origin, waitedMs: Date.now() - Date.parse(task.createdAt) });
-  const elsewhere = task.origin === 'voice' ? '' : ' desde otro dispositivo';
+  const { t } = voiceOf(handlerInput);
+  const elsewhere = task.origin === 'voice' ? '' : t.fromElsewhere;
   const intro = atLaunch
-    ? `Tengo la respuesta a lo que me pediste${elsewhere}: ${shortQuestion(task.question)} `
-    : (elsewhere ? `Lo que me pediste${elsewhere}: ${shortQuestion(task.question)} ` : '');
+    ? t.readyAtLaunch(elsewhere, shortQuestion(task.question))
+    : (elsewhere ? t.readyFromElsewhere(elsewhere, shortQuestion(task.question)) : '');
   return withAnswerCard(handlerInput.responseBuilder, task.question, task.answer)
     .speak(ssml(`${intro}${forSpeech(task.answer)}`, { sound: READY_SOUND }))
-    .reprompt(ssml('¿Algo más?'))
+    .reprompt(ssml(t.anythingElse))
     .withShouldEndSession(false)
     .getResponse();
 }
@@ -230,10 +243,11 @@ const LaunchRequestHandler = {
   handle(handlerInput) {
     const userId = getAlexaUserId(handlerInput);
     const allowed = getAllowed(userId);
-    logDebug('launch', { userId, allowed });
+    const { lang, t } = voiceOf(handlerInput);
+    logDebug('launch', { userId, allowed, lang });
     if (!allowed) {
       return handlerInput.responseBuilder
-        .speak(ssml(`Este usuario de Alexa no está autorizado todavía para usar a ${ASSISTANT_NAME}.`))
+        .speak(ssml(t.notAllowedLaunch(ASSISTANT_NAME)))
         .withShouldEndSession(true)
         .getResponse();
     }
@@ -248,15 +262,11 @@ const LaunchRequestHandler = {
     if (pending) {
       handlerInput.attributesManager.setSessionAttributes({ ...handlerInput.attributesManager.getSessionAttributes(), pendingTaskId: pending.id });
     }
-    const greeting = pending
-      ? `${ASSISTANT_NAME} listo. Sigo trabajando en lo que me pediste antes; di repite para esperarla, o pídeme otra cosa.`
-      : `${ASSISTANT_NAME} listo. Puedes hablarme.`;
-    const speech = state.linked
-      ? greeting
-      : `${ASSISTANT_NAME} listo. Antes de usar esta skill, el dueño de la skill tiene que vincular esta cuenta.`;
+    const greeting = pending ? t.greetingPending(ASSISTANT_NAME) : t.greeting(ASSISTANT_NAME);
+    const speech = state.linked ? greeting : t.greetingNotLinked(ASSISTANT_NAME);
     return handlerInput.responseBuilder
       .speak(ssml(speech))
-      .reprompt(ssml('Puedes decirme qué necesitas.'))
+      .reprompt(ssml(t.launchReprompt))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -272,9 +282,10 @@ const TalkToDaviIntentHandler = {
   async handle(handlerInput) {
     const userId = getAlexaUserId(handlerInput);
     const deviceId = getAlexaDeviceId(handlerInput);
+    const { lang, t, returnPhrase } = voiceOf(handlerInput);
     if (!getAllowed(userId)) {
       return handlerInput.responseBuilder
-        .speak(ssml(`Este usuario no está autorizado para usar a ${ASSISTANT_NAME}.`))
+        .speak(ssml(t.notAllowed(ASSISTANT_NAME)))
         .withShouldEndSession(true)
         .getResponse();
     }
@@ -282,7 +293,7 @@ const TalkToDaviIntentHandler = {
     const state = getSessionState(userId);
     if (PIN_REQUIRED && !state.linked) {
       return handlerInput.responseBuilder
-        .speak(ssml('Esta cuenta todavía no está vinculada. Pide al dueño de la skill que complete la vinculación.'))
+        .speak(ssml(t.notLinked))
         .withShouldEndSession(true)
         .getResponse();
     }
@@ -294,34 +305,36 @@ const TalkToDaviIntentHandler = {
     // Recuperar historial conversacional desde session attributes de Alexa
     const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
     const slots = handlerInput.requestEnvelope?.request?.intent?.slots || {};
-    let utterance = normalizeSpokenQuery(slots.query?.value || slots.message?.value || '');
+    let utterance = slots.query?.value || slots.message?.value || '';
+    if (lang === 'es') utterance = normalizeSpokenQuery(utterance);
     if (utterance && FREE_INTENT_LEADS[intentName]) {
       utterance = `${FREE_INTENT_LEADS[intentName]} ${utterance}`;
     }
     if (!utterance && intentName === 'AboutDaviIntent') {
-      utterance = '¿Quién eres?';
+      utterance = t.aboutQuestion;
     }
     if (!utterance && intentName === 'CapabilitiesIntent') {
-      utterance = '¿Para qué sirves y cómo puedes ayudarme?';
+      utterance = t.capabilitiesQuestion;
     }
     logDebug('talk_intent_received', {
       userId,
       deviceId,
+      lang,
       intentName,
       utterance,
       turnCountBefore: sessionAttrs?.turnCount || 0,
     });
     if (!utterance) {
       return handlerInput.responseBuilder
-        .speak(ssml('No alcancé a entender qué querías decirme. Inténtalo de nuevo.'))
-        .reprompt(ssml('Puedes decir, por ejemplo: qué hora es en Santiago.'))
+        .speak(ssml(t.emptyUtterance))
+        .reprompt(ssml(t.emptyReprompt))
         .withShouldEndSession(false)
         .getResponse();
     }
     const turnCount = (sessionAttrs.turnCount || 0) + 1;
     const history = sessionAttrs.history || [];
 
-    const fastReply = resolveFastPath(utterance);
+    const fastReply = resolveFastPath(utterance, t);
     let result = fastReply ? { ok: true, text: fastReply } : null;
     let task = null;
     if (!fastReply) {
@@ -348,8 +361,8 @@ const TalkToDaviIntentHandler = {
     if (!result) {
       handlerInput.attributesManager.setSessionAttributes({ ...sessionAttrs, turnCount, history, lastQuery: utterance, pendingTaskId: task.id });
       return handlerInput.responseBuilder
-        .speak(ssml(`Entendí: ${shortQuestion(utterance)} Me va a tomar un momento. Di repite en unos segundos, o más tarde dime ${RETURN_PHRASE}, y te cuento.`))
-        .reprompt(ssml('Di repite cuando quieras escuchar la respuesta.'))
+        .speak(ssml(t.thinking(shortQuestion(utterance), returnPhrase)))
+        .reprompt(ssml(t.thinkingReprompt))
         .withShouldEndSession(false)
         .getResponse();
     }
@@ -371,7 +384,7 @@ const TalkToDaviIntentHandler = {
 
     return withAnswerCard(handlerInput.responseBuilder, utterance, result.text)
       .speak(ssml(forSpeech(result.text)))
-      .reprompt(ssml('Si quieres, puedes seguir hablando conmigo.'))
+      .reprompt(ssml(t.answerReprompt))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -384,17 +397,18 @@ const LinkIntentHandler = {
   },
   handle(handlerInput) {
     const userId = getAlexaUserId(handlerInput);
+    const { t } = voiceOf(handlerInput);
     const pin = handlerInput.requestEnvelope?.request?.intent?.slots?.pin?.value || '';
     if (!PIN_REQUIRED) {
       setSessionState(userId, { linked: true });
-      return handlerInput.responseBuilder.speak(ssml('Esta skill no requiere PIN. La cuenta quedó habilitada.')).getResponse();
+      return handlerInput.responseBuilder.speak(ssml(t.linkNoPin)).getResponse();
     }
     if (pin && ALEXA_LINK_PIN && pin === String(ALEXA_LINK_PIN)) {
       setSessionState(userId, { linked: true, hermesSessionKey: String(Date.now()) });
-      return handlerInput.responseBuilder.speak(ssml(`Vinculación correcta. Ya puedes hablar con ${ASSISTANT_NAME}.`)).getResponse();
+      return handlerInput.responseBuilder.speak(ssml(t.linkOk(ASSISTANT_NAME))).getResponse();
     }
     return handlerInput.responseBuilder
-      .speak(ssml('El PIN no coincide. Pide al dueño de la skill revisar la vinculación.'))
+      .speak(ssml(t.linkBad))
       .withShouldEndSession(true)
       .getResponse();
   }
@@ -407,6 +421,7 @@ const RepeatIntentHandler = {
   },
   async handle(handlerInput) {
     if (!speakerAllowed(handlerInput, 'repeat')) return ignoreSpeaker(handlerInput);
+    const { t, returnPhrase } = voiceOf(handlerInput);
     const sessionAttrs = handlerInput.attributesManager.getSessionAttributes();
     let task = findVoiceTask(sessionAttrs);
     // Esperar dentro de este mismo turno antes de pedir otro "repite".
@@ -419,21 +434,21 @@ const RepeatIntentHandler = {
       // A la segunda espera fallida se corta: la respuesta queda guardada para la próxima apertura.
       if (stillWorkingCount >= 2) {
         return handlerInput.responseBuilder
-          .speak(ssml(`Sigue trabajando y te guardo la respuesta. Cuando quieras, dime ${RETURN_PHRASE}, y te la leo.`))
+          .speak(ssml(t.stillWorkingClose(returnPhrase)))
           .withShouldEndSession(true)
           .getResponse();
       }
       return handlerInput.responseBuilder
-        .speak(ssml('Todavía estoy en eso. Di repite en unos segundos.'))
-        .reprompt(ssml('Di repite cuando quieras escuchar la respuesta.'))
+        .speak(ssml(t.stillWorking))
+        .reprompt(ssml(t.thinkingReprompt))
         .withShouldEndSession(false)
         .getResponse();
     }
-    const lastReply = sessionAttrs.lastReply || 'No tengo nada que repetir todavía.';
+    const lastReply = sessionAttrs.lastReply || t.nothingToRepeat;
     logDebug('repeat_intent', { pending: false, lastReplyPreview: String(lastReply).slice(0, 160) });
     return handlerInput.responseBuilder
       .speak(ssml(forSpeech(lastReply)))
-      .reprompt(ssml('¿Algo más?'))
+      .reprompt(ssml(t.anythingElse))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -446,9 +461,10 @@ const HelpIntentHandler = {
   },
   handle(handlerInput) {
     logDebug('help_intent', {});
+    const { t, closeWord } = voiceOf(handlerInput);
     return handlerInput.responseBuilder
-      .speak(ssml(`Pregúntame lo que quieras empezando con qué, cuál, cómo, busca o pon. Si tardo, di repite. Para terminar, di ${CLOSE_WORD}.`))
-      .reprompt(ssml('Prueba diciendo: qué hora es en Santiago.'))
+      .speak(ssml(t.help(closeWord)))
+      .reprompt(ssml(t.helpReprompt))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -460,12 +476,11 @@ const CancelAndStopIntentHandler = {
       && ['AMAZON.CancelIntent', 'AMAZON.StopIntent'].includes(Alexa.getIntentName(handlerInput.requestEnvelope));
   },
   handle(handlerInput) {
-    // "maracuyá" cae aquí (muestra de AMAZON.StopIntent). Una respuesta pendiente no se descarta.
+    // "maracuyá" o "passion fruit" caen aquí (muestras de AMAZON.StopIntent). Una respuesta pendiente no se descarta.
+    const { t, returnPhrase } = voiceOf(handlerInput);
     const task = findVoiceTask(handlerInput.attributesManager.getSessionAttributes());
     const saved = task && (task.status === 'pending' || (task.status === 'done' && !task.deliveredAt));
-    const speech = saved
-      ? `Listo. Te guardo la respuesta que sigue en curso; dime ${RETURN_PHRASE} cuando quieras escucharla.`
-      : 'Listo, hasta luego.';
+    const speech = saved ? t.byeSaved(returnPhrase) : t.bye;
     return handlerInput.responseBuilder
       .speak(ssml(speech))
       .withShouldEndSession(true)
@@ -485,9 +500,10 @@ const FallbackIntentHandler = {
     });
     // La TV casi nunca empieza con una palabra de la skill: llega aquí y, sin este filtro, mantenía la sesión abierta.
     if (!speakerAllowed(handlerInput, 'fallback')) return ignoreSpeaker(handlerInput);
+    const { t } = voiceOf(handlerInput);
     return handlerInput.responseBuilder
-      .speak(ssml('No entendí esa petición. Puedes intentar con: quién eres, háblame de ti, o ayúdame con una idea.'))
-      .reprompt(ssml('Puedes decir: quién eres, háblame de ti, o ayúdame con una idea.'))
+      .speak(ssml(t.fallback))
+      .reprompt(ssml(t.fallbackReprompt))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -508,14 +524,12 @@ const UnknownIntentHandler = {
     });
     if (!speakerAllowed(handlerInput, 'unknown')) return ignoreSpeaker(handlerInput);
 
-    const isSendToPhone = intentName === 'AMAZON.SendToPhoneIntent';
-    const speech = isSendToPhone
-      ? `Alexa entendió una intención del sistema llamada Send To Phone en vez de mandarla a ${ASSISTANT_NAME}. No empieces con dime. Prueba diciendo solo: quién eres, o háblame de ti.`
-      : `Alexa entendió otra intención distinta a ${ASSISTANT_NAME}. Intento detectado: ${intentName}. Prueba diciendo: quién eres, o háblame de ti.`;
+    const { t } = voiceOf(handlerInput);
+    const speech = intentName === 'AMAZON.SendToPhoneIntent' ? t.sendToPhone(ASSISTANT_NAME) : t.otherIntent(ASSISTANT_NAME, intentName);
 
     return handlerInput.responseBuilder
       .speak(ssml(speech))
-      .reprompt(ssml('Prueba diciendo: quién eres, o háblame de ti.'))
+      .reprompt(ssml(t.tryWhoAreYou))
       .withShouldEndSession(false)
       .getResponse();
   }
@@ -547,9 +561,10 @@ const ErrorHandler = {
       error: error instanceof Error ? error.message : String(error),
     });
     console.error('Alexa error:', error);
+    const { t } = voiceOf(handlerInput);
     return handlerInput.responseBuilder
-      .speak(ssml('Tuve un problema procesando esa petición. Inténtalo de nuevo diciendo: quién eres, o háblame de ti.'))
-      .reprompt(ssml('Prueba diciendo: quién eres, o háblame de ti.'))
+      .speak(ssml(t.error))
+      .reprompt(ssml(t.tryWhoAreYou))
       .withShouldEndSession(false)
       .getResponse();
   }

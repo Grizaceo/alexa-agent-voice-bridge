@@ -1,13 +1,15 @@
-// Corre test/nlu-cases.json contra el modelo de la skill (stage development) con
+// Corre las frases de prueba contra el modelo de la skill (stage development) con
 // `ask smapi profile-nlu` y muestra qué intent elige Alexa para cada frase.
-// Uso: npm run nlu [-- --group free]   (ALEXA_SKILL_ID y ALEXA_LOCALE desde .env)
+// Uso: npm run nlu [-- --group free] [-- --locale en-US]   (ALEXA_SKILL_ID y ALEXA_LOCALE desde .env)
+// Frases: test/nlu-cases.<locale>.json si existe (en-US); si no, test/nlu-cases.json (español).
 const fs = require('fs');
 const path = require('path');
 const { execFileSync } = require('child_process');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
 const SKILL_ID = process.env.ALEXA_SKILL_ID || '';
-const LOCALE = process.env.ALEXA_LOCALE || 'es-US';
+const localeArg = process.argv.indexOf('--locale');
+const LOCALE = localeArg > -1 ? process.argv[localeArg + 1] : (process.env.ALEXA_LOCALE || 'es-US');
 const groupArg = process.argv.indexOf('--group');
 const ONLY_GROUP = groupArg > -1 ? process.argv[groupArg + 1] : null;
 
@@ -16,7 +18,9 @@ if (!SKILL_ID) {
   process.exit(2);
 }
 
-const { cases } = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'test', 'nlu-cases.json'), 'utf8'));
+const ownCases = path.join(__dirname, '..', 'test', `nlu-cases.${LOCALE}.json`);
+const casesFile = fs.existsSync(ownCases) ? ownCases : path.join(__dirname, '..', 'test', 'nlu-cases.json');
+const { cases } = JSON.parse(fs.readFileSync(casesFile, 'utf8'));
 const selected = cases.filter(c => !ONLY_GROUP || c.group === ONLY_GROUP);
 
 function profile(utterance) {

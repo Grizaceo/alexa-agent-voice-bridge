@@ -2,6 +2,7 @@
 // (el mismo JSON que manda la nube de Alexa) y el cliente MCP oficial, sobre el mismo almacén de tareas.
 // Uso: npm run demo                 agente SIMULADO (sin LLM): responde "Respuesta simulada a …"
 //      npm run demo -- --real-agent el agente de .env (HERMES_GATEWAY_URL/TOKEN); las respuestas tardan lo que tarde
+//      npm run demo -- --lang en    el Echo en inglés (requests en-US); se combina con --real-agent
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -10,12 +11,22 @@ const { Client, StreamableHTTPClientTransport } = require('@modelcontextprotocol
 const { MCP_TOKEN, sleep, startBackend, alexaSession, launch, intent } = require('../test/helpers');
 
 const REAL_AGENT = process.argv.includes('--real-agent');
+const EN = process.argv.includes('--lang') && process.argv[process.argv.indexOf('--lang') + 1] === 'en';
+const LOCALE = EN ? 'en-US' : 'es-US';
 const SIMULATED_DELAY_MS = 4000;
 const VOICE_TIMEOUT_MS = 1500;
 // Con el agente real, preguntas sin búsqueda web: tardan segundos (más que el turno de voz de la demo), no minutos.
-const QUESTIONS = REAL_AGENT
-  ? { voiceIntent: 'FreeQueIntent', voiceQuery: 'es un agujero negro, en dos frases', mcp: 'En dos frases: ¿por qué el cielo es azul?' }
-  : { voiceIntent: 'FreeBuscaIntent', voiceQuery: 'vuelos baratos a Lima para el viernes', mcp: 'resume las noticias de tecnología de hoy' };
+const QUESTIONS = {
+  es: REAL_AGENT
+    ? { voiceIntent: 'FreeQueIntent', voiceQuery: 'es un agujero negro, en dos frases', mcp: 'En dos frases: ¿por qué el cielo es azul?' }
+    : { voiceIntent: 'FreeBuscaIntent', voiceQuery: 'vuelos baratos a Lima para el viernes', mcp: 'resume las noticias de tecnología de hoy' },
+  en: REAL_AGENT
+    ? { voiceIntent: 'FreeWhatIntent', voiceQuery: 'is a black hole, in two sentences', mcp: 'In two sentences: why is the sky blue?' }
+    : { voiceIntent: 'FreeSearchIntent', voiceQuery: 'cheap flights to Lima for Friday', mcp: "summarize today's tech news" },
+}[EN ? 'en' : 'es'];
+// Lo que dice el usuario para abrir y cerrar la skill en cada idioma.
+const OPEN = EN ? 'Alexa, open mango' : 'Alexa, mango';
+const CLOSE = EN ? 'passion fruit' : 'maracuyá';
 const MAX_WAIT_SECONDS = 300;
 
 const style = (code, text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);
@@ -35,7 +46,8 @@ async function startSimulatedAgent() {
       const question = JSON.parse(body).messages.at(-1).content;
       setTimeout(() => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ choices: [{ message: { content: `**Respuesta simulada** a «${question}».` } }] }));
+        const content = EN ? `**Simulated answer** to "${question}".` : `**Respuesta simulada** a «${question}».`;
+        res.end(JSON.stringify({ choices: [{ message: { content } }] }));
       }, SIMULATED_DELAY_MS);
     });
   });
@@ -69,18 +81,18 @@ async function main() {
   console.log(style('1', '\nAlexa Agent Voice Bridge: one agent, two surfaces, one task store'));
   console.log(`  server   src/server.js on ${backend.base} (data in ${dir})`);
   console.log(`  agent    ${REAL_AGENT ? `your agent from .env (${realEnv.HERMES_GATEWAY_URL})` : `SIMULATED (no LLM; answers after ${SIMULATED_DELAY_MS / 1000} s, longer than the voice turn)`}`);
-  console.log('  voice    synthetic Alexa requests, the same JSON the Alexa cloud sends (signature check off for this local demo)');
+  console.log(`  voice    synthetic Alexa requests (${LOCALE}), the same JSON the Alexa cloud sends (signature check off for this local demo)`);
   console.log('  MCP      official client @modelcontextprotocol/client, playing the role of Alexa+');
 
   try {
     step('1. A slow question by voice: the Echo says what it understood and keeps working in the background');
-    const echo = alexaSession(backend);
-    user('Alexa, mango');
+    const echo = alexaSession(backend, { locale: LOCALE });
+    user(OPEN);
     voice((await echo(launch())).speech);
     const spoken = await echo(intent(QUESTIONS.voiceIntent, { query: QUESTIONS.voiceQuery }));
     user(spoken.attributes.lastQuery || QUESTIONS.voiceQuery);
     voice(spoken.speech);
-    user('maracuyá');
+    user(CLOSE);
     voice((await echo(intent('AMAZON.StopIntent'))).speech);
 
     step('2. An MCP client (the Alexa+ stand-in) finds that voice task and collects the answer');
@@ -100,8 +112,8 @@ async function main() {
     await first.client.close();
 
     step('3. Delivered once is delivered everywhere: the Echo does not repeat it');
-    user('Alexa, mango');
-    voice((await alexaSession(backend)(launch())).speech);
+    user(OPEN);
+    voice((await alexaSession(backend, { locale: LOCALE })(launch())).speech);
 
     step('4. The other way around: ask from MCP, then the server restarts before you come back');
     const second = await mcpClient(backend);
@@ -122,8 +134,8 @@ async function main() {
     backend = await startBackend(dir, agent ? agent.address().port : 9, env);
 
     step('5. Back on the Echo after the restart');
-    user('Alexa, mango');
-    const reopened = await alexaSession(backend)(launch());
+    user(OPEN);
+    const reopened = await alexaSession(backend, { locale: LOCALE })(launch());
     voice(`${reopened.sounds.length ? style('2', '(chime) ') : ''}${reopened.speech}`);
     if (reopened.card) say(style('2', '  [app]    '), `card "${reopened.card.title}"`);
 

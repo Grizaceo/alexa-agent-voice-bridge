@@ -1,9 +1,11 @@
 // Administra la skill desde la terminal con ASK CLI (sin la consola web de Amazon).
 // Uso:
 //   node scripts/skill.js create [--dry-run]    crea la skill, sube el modelo y la habilita para pruebas
-//   node scripts/skill.js model                 sube config/interaction-model.json a todos los locales y espera el build
+//   node scripts/skill.js model                 sube el modelo de cada locale (config/interaction-model.<locale>.json
+//                                               o, si no existe, config/interaction-model.json) y espera el build
 //   node scripts/skill.js endpoint [--dry-run]  actualiza el manifiesto (endpoint y nombre) de ALEXA_SKILL_ID
 //   node scripts/skill.js simulate "abre mango" [--new]   simula una frase de punta a punta (Amazon → tu backend)
+//   (en inglés: ALEXA_LOCALE=en-US node scripts/skill.js simulate "open mango" --new)
 // Requiere `ask configure` hecho (perfil en ~/.ask/cli_config) y las variables de .env.
 const fs = require('fs');
 const os = require('os');
@@ -54,6 +56,12 @@ function buildManifest() {
   return doc;
 }
 
+// El modelo propio del locale si existe (interaction-model.en-US.json); si no, el de español.
+function modelFileFor(locale) {
+  const own = path.join(ROOT, 'config', `interaction-model.${locale}.json`);
+  return fs.existsSync(own) ? own : MODEL_FILE;
+}
+
 function manifestLocales() {
   return Object.keys(JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8')).manifest.publishingInformation.locales);
 }
@@ -96,8 +104,8 @@ async function waitForStatus(skillId, resource, pick) {
 async function uploadModel(skillId) {
   const locales = manifestLocales();
   for (const locale of locales) {
-    smapi('set-interaction-model', '-s', skillId, '-l', locale, '--interaction-model', `file:${MODEL_FILE}`);
-    console.log(`modelo subido: ${locale}`);
+    smapi('set-interaction-model', '-s', skillId, '-l', locale, '--interaction-model', `file:${modelFileFor(locale)}`);
+    console.log(`modelo subido: ${locale} (${path.basename(modelFileFor(locale))})`);
   }
   const states = await waitForStatus(skillId, 'interactionModel', status => Object.fromEntries(
     locales.map(locale => [locale, status.interactionModel?.[locale]?.lastUpdateRequest || {}])));

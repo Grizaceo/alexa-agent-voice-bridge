@@ -23,7 +23,7 @@ function freePort() {
   });
 }
 
-// Responde "**Respuesta:** <pregunta>" en FAST_MS, o en SLOW_MS si la pregunta contiene "lento".
+// Responde "**Respuesta:** <pregunta>" en FAST_MS, o en SLOW_MS si la pregunta contiene "lento" o "slow".
 async function startGateway() {
   const server = http.createServer((req, res) => {
     let body = '';
@@ -34,7 +34,7 @@ async function startGateway() {
       setTimeout(() => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ choices: [{ message: { content: `**Respuesta:** ${question}` } }] }));
-      }, question.includes('lento') ? SLOW_MS : FAST_MS);
+      }, /lento|slow/.test(question) ? SLOW_MS : FAST_MS);
     });
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -86,7 +86,8 @@ async function startBackend(dir, gatewayPort, extraEnv = {}) {
 
 // Una sesión de Alexa: lleva los sessionAttributes de cada respuesta a la siguiente request, como Alexa.
 // personId simula Voice ID (context.System.person); se puede fijar por sesión o por request.
-function alexaSession(backend, { personId: sessionPersonId = null } = {}) {
+// locale es el idioma en que se le habla al Echo ("en-US" en modo bilingüe).
+function alexaSession(backend, { personId: sessionPersonId = null, locale = 'es-US' } = {}) {
   const sessionId = `amzn1.echo-api.session.${Math.random().toString(36).slice(2)}`;
   let attributes = {};
   let isNew = true;
@@ -96,7 +97,7 @@ function alexaSession(backend, { personId: sessionPersonId = null } = {}) {
       version: '1.0',
       session: { new: isNew, sessionId, application: { applicationId: SKILL_ID }, user: { userId: USER_ID }, attributes },
       context: { System: { application: { applicationId: SKILL_ID }, user: { userId: USER_ID }, device: { deviceId: 'test-device', supportedInterfaces: {} }, apiEndpoint: 'https://api.amazonalexa.com' } },
-      request: { requestId: `${sessionId}.${requestCount += 1}`, timestamp: new Date().toISOString(), locale: 'es-US', ...request },
+      request: { requestId: `${sessionId}.${requestCount += 1}`, timestamp: new Date().toISOString(), locale, ...request },
     };
     if (personId) envelope.context.System.person = { personId, authenticationConfidenceLevel: { level: 300 } };
     isNew = false;

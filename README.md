@@ -4,7 +4,7 @@
 
 One personal agent ([Hermes Agent](https://github.com/NousResearch/hermes-agent) or any OpenAI-compatible `/v1/chat/completions` endpoint) and one durable task store, shared by two surfaces:
 
-1. **Voice:** an Amazon Echo, through a private Alexa custom skill.
+1. **Voice:** an Amazon Echo, through a private Alexa custom skill that speaks **English (en-US)** and **Spanish (es-US/es-MX/es-ES)**. Each answer follows the language of the request, so an Echo in English/Spanish multilingual mode answers in the language you used.
 2. **MCP:** any MCP client acting as an Alexa+-style assistant (there is no way yet to connect a self-hosted MCP server to Alexa+ on an Echo; see [Known limitations](#known-limitations)). The server is self-hosted, runs over Streamable HTTP, and speaks protocol **2026-07-28** and **2025-11-25** on the same endpoint. It also ships the **Agent Skill** that teaches a voice assistant how to use it, through the official MCP Skills extension.
 
 Alexa cuts a voice turn at about 8 seconds, but an agent with tools takes from 5 seconds to several minutes. Here, a slow question asked by voice keeps running. Its answer is saved, and you can hear it on the Echo later or collect it from an MCP client, and the other way around. Tasks survive closed sessions, other surfaces, and server restarts.
@@ -22,13 +22,13 @@ In about 20 seconds this starts the real `src/server.js` with a **simulated agen
 2. A question asked over MCP survives a server restart.
 3. The next time you open the skill ("Alexa, mango"), the Echo plays a chime and reads that answer first.
 
-`npm run demo -- --real-agent` does the same against the agent configured in `.env`.
+`npm run demo -- --lang en` runs the same flow with the Echo in English (en-US requests), and `npm run demo -- --real-agent` runs it against the agent configured in `.env`.
 
 | Judging criterion | Where to look |
 |---|---|
 | Technical implementation | One task store, two surfaces ([`src/agent.js`](src/agent.js)). The MCP server serves 2026-07-28 and 2025-11-25 on one endpoint, plus the Skills extension and an MCP App ([`src/mcp.js`](src/mcp.js), [`src/skills.js`](src/skills.js)). `npm test` runs the real server in both protocol eras. |
 | Design | "Answers that wait for you": the Echo says what it understood, keeps working, and later plays a chime and reminds you what you asked (and from which device). Owner-only voice (Alexa Voice ID, verified on a real Echo) ignores the TV. |
-| Potential impact | Your *own* agent, by voice, in Spanish, hands-free, with your data on your machine. Useful for people who can't or don't want to type, such as older adults and busy hands. |
+| Potential impact | Your *own* agent, by voice, in English or Spanish, hands-free, with your data on your machine. Useful for people who can't or don't want to type, such as older adults and busy hands. |
 | Quality of the idea | Built on the open standards the Alexa+ track names: any MCP host can act as an Alexa+-style assistant today, and the server ships the Agent Skill that teaches it how to behave. When Alexa+ accepts self-hosted MCP servers, the same server plugs in. |
 
 ```text
@@ -52,14 +52,15 @@ In about 20 seconds this starts the real `src/server.js` with a **simulated agen
 |---|---|
 | [`src/agent.js`](src/agent.js) | `callAgent()`, plus the task store shared by both surfaces. The store persists to `data/tasks.json` with atomic writes (tmp + rename), keeps tasks for `TASK_TTL_MS` (24 h by default), and marks tasks left pending by a crash as `failed`. |
 | [`src/server.js`](src/server.js) | Express app: the Alexa skill on `/alexa`, MCP on `/mcp`, `/health`. Listens on `127.0.0.1` by default. |
+| [`src/i18n.js`](src/i18n.js) | Everything the skill says, in English and Spanish, picked by the request's locale. |
 | [`src/mcp.js`](src/mcp.js) | MCP server built on the official TypeScript SDK v2: `createMcpHandler` + `toNodeHandler`, stateless. Checks Origin (403) and Bearer token (401). |
 | [`src/skills.js`](src/skills.js) | Serves `skills/` over MCP with the [Skills extension](https://modelcontextprotocol.io/extensions/skills/overview) (`io.modelcontextprotocol/skills`, SEP-2640): `skills/list`, `skills/get`, and `skill://` resources with SHA-256 manifests. |
-| [`skills/voice-agent-bridge/SKILL.md`](skills/voice-agent-bridge/SKILL.md) | The Agent Skill ([agentskills.io](https://agentskills.io/specification) format). It covers spoken-length answers, the async pattern, answers requested earlier by voice, es-US pitfalls, and the close word. |
+| [`skills/voice-agent-bridge/SKILL.md`](skills/voice-agent-bridge/SKILL.md) | The Agent Skill ([agentskills.io](https://agentskills.io/specification) format). It covers spoken-length answers, the async pattern, answers requested earlier by voice, es-US pitfalls, and the close words. |
 | [`src/ui/task-board.html`](src/ui/task-board.html) | MCP App (`io.modelcontextprotocol/ui`): an interactive board of the tasks from every surface, rendered by MCP Apps hosts next to `list_tasks`. |
 | [`src/voice-id.js`](src/voice-id.js) | Owner-only mode: uses Alexa Voice ID so the TV or a bystander can't talk to your agent. |
-| [`config/`](config) | Interaction model (es-US/es-MX/es-ES) and skill manifest. |
+| [`config/`](config) | Interaction models, one per language ([`interaction-model.json`](config/interaction-model.json) for es-US/es-MX/es-ES, [`interaction-model.en-US.json`](config/interaction-model.en-US.json) for en-US), and the skill manifest. |
 | [`scripts/`](scripts) | `npm run demo` (the one-command demo above), `npm run skill` (create, model, endpoint, simulate via SMAPI) and `npm run nlu` (intent resolution against the live model). |
-| [`test/`](test) | `node:test` suites: task store, synthetic Alexa requests, MCP in both protocol eras, cross-surface flows, Voice ID, and the skill's frontmatter. |
+| [`test/`](test) | `node:test` suites: task store, synthetic Alexa requests in Spanish and English, MCP in both protocol eras, cross-surface flows, Voice ID, and the skill's frontmatter. |
 
 ## The MCP server
 
@@ -111,18 +112,18 @@ Load it from the folder (for example `.claude/skills/voice-agent-bridge/`) or ov
 
 ## Voice (the Echo)
 
-| You say | What happens |
+| You say (English · Spanish) | What happens |
 |---|---|
-| "Alexa, mango" | Opens the conversation. If an answer is waiting, a chime plays and it reads the answer first, recalling the question and, if it was asked from an MCP client, where it came from: "Tengo la respuesta a lo que me pediste desde otro dispositivo: …". |
-| "qué hora es en Santiago", "busca…", "resume…", "pregúntale…" | Goes to your agent with the full sentence. |
-| *(the agent takes more than 5 s)* | "Entendí: *<what it heard>*. Me va a tomar un momento. Di repite…": you hear what Alexa transcribed, and the task keeps running. |
-| "repite" | Waits up to 5 s more and reads the answer. On the second miss it ends the session, and the answer stays saved. |
-| "maracuyá" | Closes. Anything in progress is saved. |
+| "Alexa, open mango" · "Alexa, mango" | Opens the conversation. If an answer is waiting, a chime plays and it reads the answer first, recalling the question and, if it was asked from an MCP client, where it came from: "I have the answer to what you asked me from another device: …" · "Tengo la respuesta a lo que me pediste desde otro dispositivo: …". |
+| "what time is it in Tokyo", "search…", "summarize…", "play…" · "qué hora es en Santiago", "busca…", "resume…", "pon…" | Goes to your agent with the full sentence. The agent answers in the language you used. |
+| *(the agent takes more than 5 s)* | "Got it: *<what it heard>*. This will take a moment. Say repeat…" · "Entendí: … Me va a tomar un momento. Di repite…": you hear what Alexa transcribed, and the task keeps running. |
+| "repeat" · "repite" | Waits up to 5 s more and reads the answer. On the second miss it ends the session, and the answer stays saved. |
+| "passion fruit" · "maracuyá" | Closes. Anything in progress is saved. |
 | *(every answer)* | Spoken without Markdown, and a bare link is spoken as just the site ("meteochile.gob.cl"), or skipped if the answer already names it. The full answer, links included, also appears as a card in the Alexa app (and on an Echo Show screen). |
 
 Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/es/README.md](docs/es/README.md#por-qué-está-hecho-así)):
 - **Invocation name.** It must be a word the speech recognizer transcribes exactly. "davi" came out as "david", so the invocation is "mango".
-- **Free speech.** `AMAZON.SearchQuery` can't be a bare `{query}`, so there is one intent per leading word (`Free<Word>Intent`), and the backend puts the word back.
+- **Free speech.** `AMAZON.SearchQuery` can't be a bare `{query}`, so there is one intent per leading word (`Free<Word>Intent`: `FreeWhatIntent`, `FreeBuscaIntent`…), and the backend puts the word back.
 - **es-US quirks.** *Dime* is heard as the US coin, and "un"/"una" become "1". The backend reverts the latter.
 - **The ~8 s limit.** It applies regardless of progressive responses, hence the background tasks.
 
@@ -132,7 +133,7 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 
 With `VOICE_ID_MODE=enforce`, only a speaker that Alexa recognizes by voice reaches the agent, `repite`, or the announcement of saved answers. After `VOICE_ID_MODE=enroll`, that speaker must be the enrolled owner. Recognition comes from `context.System.person.personId`, which requires the skill permission `alexa::person_id:read` and "Personalize skills" on your Voice ID.
 
-So, while the session's microphone is open, a TV or someone talking to you doesn't become a message for your agent. The filter covers every handler, including `AMAZON.FallbackIntent`, where most TV speech lands. An ignored phrase gets "No reconocí tu voz. Si me hablabas a mí, repítelo." The close word is accepted from anyone. After `VOICE_ID_MAX_IGNORED` (default 3) unrecognized phrases in a row, the session closes, so a TV can't keep it open.
+So, while the session's microphone is open, a TV or someone talking to you doesn't become a message for your agent. The filter covers every handler, including `AMAZON.FallbackIntent`, where most TV speech lands. An ignored phrase gets "I didn't recognize your voice. If you were talking to me, say it again." ("No reconocí tu voz…" in Spanish). The close word is accepted from anyone. After `VOICE_ID_MAX_IGNORED` (default 3) unrecognized phrases in a row, the session closes, so a TV can't keep it open.
 
 Limits:
 - Voice ID classifies each request as a whole. It does not separate overlapping voices, so if the TV talks *while* you talk, the request may not be recognized as yours and you repeat it. On the real Echo, one of two owner phrases spoken over the TV was not recognized; repeating it more clearly worked.
@@ -149,6 +150,7 @@ The voice bridge began as a private prototype in May–June 2026 (Echo → skill
   - voice ↔ MCP flows (F3);
   - the Agent Skill, served over MCP (F4);
   - Voice ID owner-only mode (F4b), verified on a real Echo;
+  - English (en-US) next to Spanish: interaction model, every spoken reply, NLU cases and tests;
   - all the tests in `test/` except `nlu-cases.json`.
 - **Open source contribution:** [alexa/ask-cli#513](https://github.com/alexa/ask-cli/pull/513) makes `ask util generate-lwa-tokens` work without `~/.ask/cli_config`, which blocked setting up the skill from an AI coding agent (unit suite 1639 → 1640 passing).
 - **The phase-by-phase work log** (in Spanish), with the verification required for each phase: [`docs/hackathon-log.md`](docs/hackathon-log.md).
@@ -172,8 +174,8 @@ npm run skill -- simulate "abre mango" --new
 |---|---|
 | Unit and integration tests (store, voice, MCP in both eras, cross-surface, Voice ID, skill) | `npm test` |
 | Syntax of every entry point | `npm run check` |
-| Every test phrase reaches the expected intent on the live model | `npm run nlu` |
-| The whole voice chain through the Alexa cloud | `npm run skill -- simulate "abre mango" --new` |
+| Every test phrase reaches the expected intent on the live model | `npm run nlu` (Spanish) · `npm run nlu -- --locale en-US` |
+| The whole voice chain through the Alexa cloud | `npm run skill -- simulate "abre mango" --new` · `ALEXA_LOCALE=en-US npm run skill -- simulate "open mango" --new` |
 | Tool schemas are portable | `npx -y @modelcontextprotocol/inspector@2.11.0 --cli <url>/mcp --transport http --header "Authorization: Bearer $MCP_TOKEN" --method tools/list --strict` |
 | The skill served over MCP passes Skills-extension conformance and digest checks | same Inspector command with `--method skills/list --verify` |
 | The skill is valid Agent Skills | `uvx --from 'git+https://github.com/agentskills/agentskills#subdirectory=skills-ref' skills-ref validate skills/voice-agent-bridge` |
@@ -192,7 +194,7 @@ Everything lives in `.env` (see [`.env.example`](.env.example)):
 | `TASKS_FILE`, `TASK_TTL_MS` | Where tasks persist and how long they live. |
 | `VOICE_GATEWAY_TIMEOUT_MS`, `HERMES_MAX_WAIT_MS` | Wait inside a voice turn (5 s) and maximum wait for the agent (10 min). |
 | `VOICE_ID_MODE`, `VOICE_OWNER_PERSON_ID`, `VOICE_ID_MAX_IGNORED`, `VOICE_ID_SILENT` | Owner-only voice mode. |
-| `ASSISTANT_NAME`, `ALEXA_RETURN_PHRASE`, `ALEXA_ENDPOINT`, `ALLOW_USER_IDS` | Spoken name, reopen phrase, public skill URL, allowed Alexa users. |
+| `ASSISTANT_NAME`, `ALEXA_RETURN_PHRASE`, `ALEXA_RETURN_PHRASE_EN`, `ALEXA_ENDPOINT`, `ALLOW_USER_IDS` | Spoken name, reopen phrase in Spanish and English ("Alexa, mango", "Alexa, open mango"), public skill URL, allowed Alexa users. |
 | `READY_SOUND` | Alexa sound-library chime played before an answer that waited (empty = none). |
 | `PORT`, `HOST` | Where the backend listens (`127.0.0.1:3107` by default). |
 

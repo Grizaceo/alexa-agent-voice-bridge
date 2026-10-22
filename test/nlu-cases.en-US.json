@@ -1,0 +1,40 @@
+{
+  "_comment": "en-US phrases said INSIDE the session (after 'Alexa, open mango'). 'expect' is the intent Alexa should pick; 'DAVI' accepts TalkToDaviIntent or any Free*Intent. group=free is free speech with no carrier phrase.",
+  "cases": [
+    { "group": "anchored", "utterance": "ask what the weather is like tomorrow", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "tell me about black holes", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "explain what an agent is", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "help me with my job search", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "I want to know which processes are running on the gpu", "expect": "DAVI" },
+    { "group": "anchored", "utterance": "I need help with an email", "expect": "DAVI" },
+
+    { "group": "fixed", "utterance": "who are you", "expect": "AboutDaviIntent" },
+    { "group": "fixed", "utterance": "tell me about yourself", "expect": "AboutDaviIntent" },
+    { "group": "fixed", "utterance": "what can you do", "expect": "CapabilitiesIntent" },
+    { "group": "fixed", "utterance": "help", "expect": "AMAZON.HelpIntent" },
+    { "group": "fixed", "utterance": "repeat", "expect": "AMAZON.RepeatIntent" },
+
+    { "group": "free", "utterance": "what time is it in tokyo", "expect": "DAVI" },
+    { "group": "free", "utterance": "what's on my calendar today", "expect": "DAVI" },
+    { "group": "free", "utterance": "how long until my hackathon deadline", "expect": "DAVI" },
+    { "group": "free", "utterance": "system status", "expect": "DAVI" },
+    { "group": "free", "utterance": "summarize what I did in my sessions today", "expect": "DAVI" },
+    { "group": "free", "utterance": "read me the results of my arxiv cron job", "expect": "DAVI" },
+    { "group": "free", "utterance": "make me a list of things to do today", "expect": "DAVI" },
+    { "group": "free", "utterance": "search for cheap flights to lima on friday", "expect": "DAVI" },
+    { "group": "free", "utterance": "any comments on my pull request", "expect": "DAVI" },
+    { "group": "free", "utterance": "is it going to rain this weekend", "expect": "DAVI" },
+
+    { "group": "collision", "utterance": "who won the game last night", "expect": "DAVI" },
+    { "group": "collision", "utterance": "my pin is 1234", "expect": "LinkIntent" },
+    { "group": "collision", "utterance": "stop", "expect": "AMAZON.StopIntent" },
+    { "group": "collision", "utterance": "cancel", "expect": "AMAZON.CancelIntent" },
+
+    { "group": "tv", "utterance": "play a video on my tv based on what you know about me", "expect": "DAVI" },
+    { "group": "tv", "utterance": "put a youtube video on the tv", "expect": "DAVI" },
+    { "group": "tv", "utterance": "find a video on youtube and send it to my tv", "expect": "DAVI" },
+    { "group": "tv", "utterance": "show me the dune trailer on the tv", "expect": "DAVI" },
+
+    { "group": "close", "utterance": "passion fruit", "expect": "AMAZON.StopIntent" }
+  ]
+}

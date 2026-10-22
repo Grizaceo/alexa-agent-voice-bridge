@@ -1,6 +1,6 @@
 ---
 name: voice-agent-bridge
-description: Talk to the user's own personal agent through the alexa-agent-voice-bridge MCP server (tools ask_agent, get_agent_result, list_tasks), as a voice assistant like Alexa+ would. Covers spoken-length answers, the asynchronous pattern for slow questions (acknowledge, keep talking, collect the answer later), delivering answers the user asked for earlier by voice on their Echo, and Spanish (es-US) voice pitfalls. Use when the user wants to ask their own agent something, asks about something they requested earlier, or says the close word.
+description: Talk to the user's own personal agent through the alexa-agent-voice-bridge MCP server (tools ask_agent, get_agent_result, list_tasks), as a voice assistant like Alexa+ would. Covers spoken-length answers, the asynchronous pattern for slow questions (acknowledge, keep talking, collect the answer later), delivering answers the user asked for earlier by voice on their Echo (in English or Spanish), and Spanish (es-US) voice pitfalls. Use when the user wants to ask their own agent something, asks about something they requested earlier, or says the close word.
 license: MIT
 compatibility: Requires the alexa-agent-voice-bridge MCP server (Streamable HTTP, protocol 2025-11-25 or 2026-07-28) and its bearer token. Designed for voice-first hosts; works in any MCP client.
 metadata:
@@ -58,7 +58,7 @@ When you suggest a phrase for the user to say to the Echo:
 
 ## Closing
 
-The close word is **"maracuyá"** by default. When the user says it, or asks to stop, end the conversation in one sentence. If tasks are still pending, confirm they are saved and can be heard later on the Echo ("Alexa, mango") or from any MCP client.
+The close word is **"passion fruit"** in English and **"maracuyá"** in Spanish by default. When the user says it, or asks to stop, end the conversation in one sentence. If tasks are still pending, confirm they are saved and can be heard later on the Echo ("Alexa, open mango", or "Alexa, mango" in Spanish) or from any MCP client.
 
 ## Example
 
