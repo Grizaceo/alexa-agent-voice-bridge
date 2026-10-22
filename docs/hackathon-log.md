@@ -18,7 +18,7 @@
 | Extra tras brainstorm y juez | ✅ | Pulido de voz (repetir lo entendido, recordar la pregunta, sonido, tarjeta), `npm run demo`, MCP App (tablero, verificado en MCPJam) |
 | F7 web que simula Alexa+ | ⛔ descartada | La reemplazan la MCP App y `npm run demo` |
 | F8 publicar | ✅ | Repo público `Grizaceo/alexa-agent-voice-bridge` (21-oct), commits con el correo noreply de GitHub; este archivo pasó a `docs/hackathon-log.md` |
-| F9 inglés (en-US) | ✅ en la nube · Echo real pendiente | 22-oct: `src/i18n.js` (todo lo hablado, por `request.locale`), `config/interaction-model.en-US.json`, manifiesto con en-US, `test/voice-en.test.js` (51/51), NLU en vivo 30/30 en-US y 32/32 es-US, `simulate "open mango"` → "Davi is ready…"; `npm run demo -- --lang en` |
+| F9 inglés (en-US) | ✅ | 22-oct, Echo real en modo bilingüe: tras crear el Voice ID también en inglés, Alexa reconoce al dueño en ambos idiomas con el mismo `personId` (`docs/evidence/voice-id-real-echo-en.jsonl`, friction 17–18). En la nube: `src/i18n.js` (todo lo hablado, por `request.locale`), `config/interaction-model.en-US.json`, manifiesto con en-US, `test/voice-en.test.js` (51/51), NLU en vivo 30/30 en-US y 32/32 es-US, `simulate "open mango"` → "Davi is ready…"; `npm run demo -- --lang en` |
 
 Producción (3107) corre el HEAD de la rama con `VOICE_ID_MODE=enforce` y el dueño registrado (21-oct, 19:02).
 

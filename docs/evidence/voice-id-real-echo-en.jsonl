@@ -1,0 +1,38 @@
+{"ts":"2026-10-22T20:39:09.481Z","event":"launch","allowed":true,"lang":"en"}
+{"ts":"2026-10-22T20:39:09.481Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"en-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:39:26.556Z","event":"session_ended","reason":"EXCEEDED_MAX_REPROMPTS"}
+{"ts":"2026-10-22T20:39:50.524Z","event":"launch","allowed":true,"lang":"es"}
+{"ts":"2026-10-22T20:39:50.524Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"es-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:39:57.581Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"es-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:39:57.582Z","event":"talk_intent_received","lang":"es","intentName":"FreeQueIntent","utterance":"qué hora es en santiago"}
+{"ts":"2026-10-22T20:40:06.678Z","event":"task_finished","origin":"voice","status":"done","ms":9095}
+{"ts":"2026-10-22T20:40:24.818Z","event":"voice_id","mode":"enforce","kind":"repeat","locale":"es-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:40:32.198Z","event":"voice_id","mode":"enforce","kind":"repeat","locale":"es-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:40:32.199Z","event":"pending_reply_delivered","origin":"voice","waitedMs":34616}
+{"ts":"2026-10-22T20:41:27.229Z","event":"launch","allowed":true,"lang":"en"}
+{"ts":"2026-10-22T20:41:27.229Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"en-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:41:34.812Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"en-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:41:44.929Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"en-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:41:54.747Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"en-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:50:12.491Z","event":"launch","allowed":true,"lang":"es"}
+{"ts":"2026-10-22T20:50:12.491Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"es-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:50:20.579Z","event":"fallback_intent","intentName":"AMAZON.FallbackIntent"}
+{"ts":"2026-10-22T20:50:20.579Z","event":"voice_id","mode":"enforce","kind":"fallback","locale":"es-US","recognized":false,"person":null,"isOwner":false,"allowed":false}
+{"ts":"2026-10-22T20:51:03.112Z","event":"launch","allowed":true,"lang":"en"}
+{"ts":"2026-10-22T20:51:03.112Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:51:10.161Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:51:10.161Z","event":"talk_intent_received","lang":"en","intentName":"FreeWhatIntent","utterance":"what time is it right now"}
+{"ts":"2026-10-22T20:51:18.413Z","event":"task_finished","origin":"voice","status":"done","ms":8251}
+{"ts":"2026-10-22T20:51:35.812Z","event":"voice_id","mode":"enforce","kind":"repeat","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:51:35.813Z","event":"pending_reply_delivered","origin":"voice","waitedMs":25651}
+{"ts":"2026-10-22T20:51:58.185Z","event":"session_ended","reason":"EXCEEDED_MAX_REPROMPTS"}
+{"ts":"2026-10-22T20:52:18.609Z","event":"launch","allowed":true,"lang":"es"}
+{"ts":"2026-10-22T20:52:18.609Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"es-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:52:36.369Z","event":"session_ended","reason":"EXCEEDED_MAX_REPROMPTS"}
+{"ts":"2026-10-22T20:52:44.933Z","event":"launch","allowed":true,"lang":"en"}
+{"ts":"2026-10-22T20:52:44.933Z","event":"voice_id","mode":"enforce","kind":"launch","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:52:52.304Z","event":"voice_id","mode":"enforce","kind":"talk","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:52:52.304Z","event":"talk_intent_received","lang":"en","intentName":"FreeWhatsIntent","utterance":"what's the weather like in Santiago"}
+{"ts":"2026-10-22T20:53:10.045Z","event":"task_finished","origin":"voice","status":"done","ms":17740}
+{"ts":"2026-10-22T20:53:18.243Z","event":"voice_id","mode":"enforce","kind":"repeat","locale":"en-US","recognized":true,"person":"5521f038","isOwner":true,"allowed":true}
+{"ts":"2026-10-22T20:53:18.244Z","event":"pending_reply_delivered","origin":"voice","waitedMs":25940}

@@ -130,6 +130,8 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 ### Owner-only mode (Voice ID)
 
 > **Verified on a real es-US Echo** with the skill in development stage (2026-10-21; redacted log in [`docs/evidence/voice-id-real-echo.jsonl`](docs/evidence/voice-id-real-echo.jsonl)). Every request from the enrolled owner carried `context.System.person`: launch, free speech and `repite`. A TV talking during an open session arrived without it, was ignored, and the session closed after its third phrase. The same cases are covered by synthetic tests ([`test/voice-id.test.js`](test/voice-id.test.js)).
+>
+> **And in English (en-US)**, on the same Echo in English/Spanish multilingual mode (2026-10-22; [`docs/evidence/voice-id-real-echo-en.jsonl`](docs/evidence/voice-id-real-echo-en.jsonl)). Alexa only identified the owner speaking English after the voice ID was also created in English ("Alexa, learn my voice"). The `personId` is the same in both languages, so the enrolled owner keeps working. A skill session also stays in the language it was opened in, so open it in the language you'll speak.
 
 With `VOICE_ID_MODE=enforce`, only a speaker that Alexa recognizes by voice reaches the agent, `repite`, or the announcement of saved answers. After `VOICE_ID_MODE=enroll`, that speaker must be the enrolled owner. Recognition comes from `context.System.person.personId`, which requires the skill permission `alexa::person_id:read` and "Personalize skills" on your Voice ID.
 
