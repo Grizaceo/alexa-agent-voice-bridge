@@ -65,6 +65,8 @@ async function startBackend(dir, gatewayPort, extraEnv = {}) {
       SESSION_FILE: path.join(dir, 'sessions.json'),
       ALEXA_DEBUG_LOG: path.join(dir, 'debug.log'),
       VOICE_ID_MODE: 'off',
+      // Vacío = el mismo modo; fijarlo evita que dotenv lo traiga del .env local.
+      VOICE_ID_MODE_EN: '',
       VOICE_OWNER_PERSON_ID: '',
       VOICE_OWNER_FILE: path.join(dir, 'voice-owner.json'),
       ...extraEnv,
