@@ -29,6 +29,8 @@ Una Alexa Custom Skill privada para hablar desde un Echo con **tu** agente, sea 
 
 **En inglés.** La skill también habla inglés (en-US), con su propio modelo (`config/interaction-model.en-US.json`). Con el Echo en inglés o en modo bilingüe inglés/español, cada respuesta sale en el idioma en que le hablaste: "Alexa, open mango", "what…", "search…", "repeat" y, para cerrar, "passion fruit".
 
+**Voice ID y el idioma.** La skill funciona en los dos idiomas siempre; lo que depende del idioma es el filtro de "solo el dueño". Alexa reconoce tu voz bien solo en el idioma en que grabaste tu Voice ID, así que el filtro se fija por idioma en `.env`: si lo grabaste en español ("Alexa, aprende mi voz"), `VOICE_ID_MODE=enforce` y `VOICE_ID_MODE_EN=off`; si lo grabaste en inglés ("Alexa, learn my voice"), `VOICE_ID_MODE=off` y `VOICE_ID_MODE_EN=enforce`. Si solo hablas un idioma, basta `VOICE_ID_MODE=enforce`.
+
 ## Por qué está hecho así
 
 Esto es lo que funcionó después de varios intentos que no llegaban al Echo:
