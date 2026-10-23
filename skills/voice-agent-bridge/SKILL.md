@@ -58,7 +58,7 @@ When you suggest a phrase for the user to say to the Echo:
 
 ## Closing
 
-The close word is **"passion fruit"** in English and **"maracuyá"** in Spanish by default. When the user says it, or asks to stop, end the conversation in one sentence. If tasks are still pending, confirm they are saved and can be heard later on the Echo ("Alexa, open mango", or "Alexa, mango" in Spanish) or from any MCP client.
+The close word is **"maracuyá"** in both English and Spanish by default (each deployment can change it). When the user says it, or asks to stop, end the conversation in one sentence. If tasks are still pending, confirm they are saved and can be heard later on the Echo ("Alexa, open mango", or "Alexa, mango" in Spanish) or from any MCP client.
 
 ## Example
 

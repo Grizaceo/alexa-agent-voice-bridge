@@ -26,7 +26,7 @@ const QUESTIONS = {
 }[EN ? 'en' : 'es'];
 // Lo que dice el usuario para abrir y cerrar la skill en cada idioma.
 const OPEN = EN ? 'Alexa, open mango' : 'Alexa, mango';
-const CLOSE = EN ? 'passion fruit' : 'maracuyá';
+const CLOSE = 'maracuyá';
 const MAX_WAIT_SECONDS = 300;
 
 const style = (code, text) => (process.stdout.isTTY ? `\x1b[${code}m${text}\x1b[0m` : text);

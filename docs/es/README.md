@@ -1,4 +1,4 @@
-# Alexa → tu propio agente
+# Mango con Maracuyá: Alexa → tu propio agente
 
 > Guía original de la parte de voz. El servidor MCP, la Agent Skill, la MCP App, Voice ID y la demo de un comando están en el [README en inglés](../../README.md).
 
@@ -27,7 +27,9 @@ Una Alexa Custom Skill privada para hablar desde un Echo con **tu** agente, sea 
 | "maracuyá" | Cierra la conversación. Si hay algo en curso, lo guarda. |
 | "Alexa, pídele a mango estado del sistema" | Hace la pregunta en una sola frase, sin abrir la conversación. |
 
-**En inglés.** La skill también habla inglés (en-US), con su propio modelo (`config/interaction-model.en-US.json`). Con el Echo en inglés o en modo bilingüe inglés/español, cada respuesta sale en el idioma en que le hablaste: "Alexa, open mango", "what…", "search…", "repeat" y, para cerrar, "passion fruit".
+**En inglés.** La skill también habla inglés (en-US), con su propio modelo (`config/interaction-model.en-US.json`). Con el Echo en inglés o en modo bilingüe inglés/español, cada respuesta sale en el idioma en que le hablaste: "Alexa, open mango", "what…", "search…", "repeat" y, para cerrar, también "maracuyá".
+
+**Hazla tuya.** "Mango" y "maracuyá" son valores por defecto. El nombre hablado es `ASSISTANT_NAME` y el de la app Alexa es `SKILL_NAME`, los dos en `.env`. La palabra para abrir es `invocationName` en los dos modelos de `config/`; la de cierre es la primera muestra de `AMAZON.StopIntent` en cada modelo. Después de cambiar los modelos, corre `npm run skill -- model` (o `endpoint` para el nombre de la app) y reinicia el backend. Detalle en el [README en inglés](../../README.md#make-it-yours-name-invocation-and-close-word).
 
 **Voice ID y el idioma.** La skill funciona en los dos idiomas siempre; lo que depende del idioma es el filtro de "solo el dueño". Alexa reconoce tu voz bien solo en el idioma en que grabaste tu Voice ID, así que el filtro se fija por idioma en `.env`: si lo grabaste en español ("Alexa, aprende mi voz"), `VOICE_ID_MODE=enforce` y `VOICE_ID_MODE_EN=off`; si lo grabaste en inglés ("Alexa, learn my voice"), `VOICE_ID_MODE=off` y `VOICE_ID_MODE_EN=enforce`. Si solo hablas un idioma, basta `VOICE_ID_MODE=enforce`.
 

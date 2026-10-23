@@ -18,7 +18,8 @@ const ENV_FILE = path.join(ROOT, '.env');
 const MODEL_FILE = path.join(ROOT, 'config', 'interaction-model.json');
 const MANIFEST_FILE = path.join(ROOT, 'config', 'skill-manifest.json');
 const ASK_PROFILE = process.env.ASK_PROFILE || 'default';
-const ASSISTANT_NAME = process.env.ASSISTANT_NAME || 'Mango';
+// Nombre de la skill en la app Alexa (el que se dice por voz es ASSISTANT_NAME, en src/server.js).
+const SKILL_NAME = process.env.SKILL_NAME || 'Mango con Maracuyá';
 const ALEXA_ENDPOINT = process.env.ALEXA_ENDPOINT || '';
 const ALEXA_LOCALE = process.env.ALEXA_LOCALE || 'es-US';
 
@@ -51,7 +52,7 @@ function buildManifest() {
   const doc = JSON.parse(fs.readFileSync(MANIFEST_FILE, 'utf8'));
   doc.manifest.apis.custom.endpoint.uri = ALEXA_ENDPOINT;
   for (const locale of Object.values(doc.manifest.publishingInformation.locales)) {
-    locale.name = ASSISTANT_NAME;
+    locale.name = SKILL_NAME;
   }
   return doc;
 }

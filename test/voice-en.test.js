@@ -56,7 +56,7 @@ test('voice in English (en-US)', async t => {
     assert.deepEqual(answer.sounds, ['soundbank://soundlibrary/alarms/beeps_and_bloops/bell_02']);
   });
 
-  await t.test('"passion fruit" with work in progress saves it; reopening announces it', async () => {
+  await t.test('"maracuyá" with work in progress saves it; reopening announces it', async () => {
     const send = session(backend);
     await send(intent('FreeSummarizeIntent', { query: 'the slow report' }));
     const bye = await send(intent('AMAZON.StopIntent'));
@@ -82,7 +82,7 @@ test('voice in English (en-US)', async t => {
 
   await t.test('help names the English close word; the same backend still speaks Spanish to es-US', async () => {
     assert.equal((await session(backend)(intent('AMAZON.HelpIntent'))).speech,
-      'Ask me anything, starting with what, who, how, search, or play. If I take a while, say repeat. To finish, say passion fruit.');
+      'Ask me anything, starting with what, who, how, search, or play. If I take a while, say repeat. To finish, say maracuya.');
     assert.equal((await alexaSession(backend)(launch())).speech, 'Mango listo. Puedes hablarme.');
   });
 });

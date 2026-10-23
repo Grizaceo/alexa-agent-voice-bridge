@@ -1,6 +1,6 @@
-# Alexa Agent Voice Bridge
+# Mango con Maracuyá
 
-**Your own agent, any surface: answers that wait for you.**
+**Your own agent, any surface: answers that wait for you.** Open it with *"mango"*, close it with *"maracuyá"*. Technical name: Alexa Agent Voice Bridge (`alexa-agent-voice-bridge`).
 
 One personal agent ([Hermes Agent](https://github.com/NousResearch/hermes-agent) or any OpenAI-compatible `/v1/chat/completions` endpoint) and one durable task store, shared by two surfaces:
 
@@ -118,7 +118,7 @@ Load it from the folder (for example `.claude/skills/voice-agent-bridge/`) or ov
 | "what time is it in Tokyo", "search…", "summarize…", "play…" · "qué hora es en Santiago", "busca…", "resume…", "pon…" | Goes to your agent with the full sentence. The agent answers in the language you used. |
 | *(the agent takes more than 5 s)* | "Got it: *<what it heard>*. This will take a moment. Say repeat…" · "Entendí: … Me va a tomar un momento. Di repite…": you hear what Alexa transcribed, and the task keeps running. |
 | "repeat" · "repite" | Waits up to 5 s more and reads the answer. On the second miss it ends the session, and the answer stays saved. |
-| "passion fruit" · "maracuyá" | Closes. Anything in progress is saved. |
+| "maracuyá" (both languages; "stop" and "para" also work) | Closes. Anything in progress is saved. |
 | *(every answer)* | Spoken without Markdown, and a bare link is spoken as just the site ("meteochile.gob.cl"), or skipped if the answer already names it. The full answer, links included, also appears as a card in the Alexa app (and on an Echo Show screen). |
 
 Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/es/README.md](docs/es/README.md#por-qué-está-hecho-así)):
@@ -126,6 +126,19 @@ Why it is built this way (lessons from a real Echo in es-US, detailed in [docs/e
 - **Free speech.** `AMAZON.SearchQuery` can't be a bare `{query}`, so there is one intent per leading word (`Free<Word>Intent`: `FreeWhatIntent`, `FreeBuscaIntent`…), and the backend puts the word back.
 - **es-US quirks.** *Dime* is heard as the US coin, and "un"/"una" become "1". The backend reverts the latter.
 - **The ~8 s limit.** It applies regardless of progressive responses, hence the background tasks.
+
+### Make it yours: name, invocation and close word
+
+"Mango" and "maracuyá" are defaults. Change any of them:
+
+| What | Where | Then |
+|---|---|---|
+| Spoken name ("Mango is ready") | `ASSISTANT_NAME` in `.env` | Restart the backend. |
+| Skill name in the Alexa app ("Mango con Maracuyá") | `SKILL_NAME` in `.env` | `npm run skill -- endpoint` |
+| Word that opens the skill ("mango") | `invocationName` in [`config/interaction-model.json`](config/interaction-model.json) and [`config/interaction-model.en-US.json`](config/interaction-model.en-US.json), plus `ALEXA_RETURN_PHRASE` and `ALEXA_RETURN_PHRASE_EN` in `.env` (what the Echo tells you to say later) | `npm run skill -- model`, then restart the backend. |
+| Close word ("maracuyá") | The first sample of `AMAZON.StopIntent` in each interaction model. The backend reads it from there and says it in the help. | `npm run skill -- model`, then restart the backend. |
+
+Pick words the speech recognizer transcribes exactly in your language ("davi" came out as "david"), and check them with `npm run nlu` and `npm run nlu -- --locale en-US`. In English, the close word is written "maracuya" in the model, because en-US samples are plain ASCII. The built-in "stop" and "cancel" keep working whatever close word you choose.
 
 ### Owner-only mode (Voice ID)
 

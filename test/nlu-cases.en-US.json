@@ -35,6 +35,6 @@
     { "group": "tv", "utterance": "find a video on youtube and send it to my tv", "expect": "DAVI" },
     { "group": "tv", "utterance": "show me the dune trailer on the tv", "expect": "DAVI" },
 
-    { "group": "close", "utterance": "passion fruit", "expect": "AMAZON.StopIntent" }
+    { "group": "close", "utterance": "maracuya", "expect": "AMAZON.StopIntent" }
   ]
 }

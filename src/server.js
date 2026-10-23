@@ -67,7 +67,7 @@ const INTERACTION_MODEL_INTENTS = {
 const FREE_INTENT_LEADS = Object.fromEntries(Object.values(INTERACTION_MODEL_INTENTS).flat()
   .filter(intent => /^Free[A-Za-z]+Intent$/.test(intent.name) && intent.samples?.length)
   .map(intent => [intent.name, intent.samples[0].replace('{query}', '').trim()]));
-// Palabra de cierre = primera muestra de AMAZON.StopIntent en cada modelo ("maracuyá", "passion fruit").
+// Palabra de cierre = primera muestra de AMAZON.StopIntent en cada modelo ("maracuyá"; "maracuya" en inglés).
 const CLOSE_WORDS = {
   es: INTERACTION_MODEL_INTENTS.es.find(intent => intent.name === 'AMAZON.StopIntent')?.samples?.[0] || 'adiós',
   en: INTERACTION_MODEL_INTENTS.en.find(intent => intent.name === 'AMAZON.StopIntent')?.samples?.[0] || 'stop',
@@ -478,7 +478,7 @@ const CancelAndStopIntentHandler = {
       && ['AMAZON.CancelIntent', 'AMAZON.StopIntent'].includes(Alexa.getIntentName(handlerInput.requestEnvelope));
   },
   handle(handlerInput) {
-    // "maracuyá" o "passion fruit" caen aquí (muestras de AMAZON.StopIntent). Una respuesta pendiente no se descarta.
+    // "maracuyá" cae aquí en los dos idiomas (muestra de AMAZON.StopIntent). Una respuesta pendiente no se descarta.
     const { t, returnPhrase } = voiceOf(handlerInput);
     const task = findVoiceTask(handlerInput.attributesManager.getSessionAttributes());
     const saved = task && (task.status === 'pending' || (task.status === 'done' && !task.deliveredAt));
