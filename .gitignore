@@ -1,6 +1,9 @@
 node_modules/
 data/
 .env
+# Respaldos y variantes del .env (tienen los mismos secretos); solo se publica .env.example.
+.env.*
+!.env.example
 *.zip
 # Versión Lambda antigua (no soporta respuestas pendientes en memoria); ya no se usa.
 lambda/
